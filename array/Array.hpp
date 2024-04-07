@@ -19,14 +19,14 @@ namespace hy
         using type_ = T[N];
     };
 
-    template <typename Tp>
-    struct array_traits_<Tp, 0>
+    template <typename T>
+    struct array_traits_<T, 0>
     {
         struct type_
         {
             char unuse[1];
-            constexpr operator Tp *() const noexcept { return nullptr; }
-            constexpr Tp &operator[](std::size_t) const noexcept { return reinterpret_cast<Tp &>(const_cast<char &>(unuse[0])); }
+            constexpr operator T*() const noexcept { return nullptr; }
+            constexpr T &operator[](std::size_t) const noexcept { return reinterpret_cast<Tp &>(const_cast<char &>(unuse[0])); }
         };
     };
 
@@ -184,7 +184,7 @@ namespace hy
             std::fill_n(begin(), size(), value);
         }
 
-        void swap(array &other) noexcept((std::is_nothrow_swappable_v<T>))
+        void swap(array &other) noexcept(std::is_nothrow_swappable_v<T>)
         {
             std::swap_ranges(begin(), end(), other.begin());
         }
@@ -198,56 +198,56 @@ namespace hy
     }
 
     template <class T, std::size_t N>
-    inline bool operator!=(const std::array<T, N> &lhs,
-                           const std::array<T, N> &rhs)
+    inline bool operator!=(const hy::array<T, N> &lhs,
+                           const hy::array<T, N> &rhs)
     {
         return !(lhs == rhs);
     }
 
     template <class T, std::size_t N>
-    inline bool operator<(const std::array<T, N> &lhs,
-                          const std::array<T, N> &rhs)
+    inline bool operator<(const hy::array<T, N> &lhs,
+                          const hy::array<T, N> &rhs)
     {
         return std::lexicographical_compare(lhs.cbegin(), lhs.end(), rhs.cbegin(), rhs.cend());
     }
 
     template <class T, std::size_t N>
-    inline bool operator>(const std::array<T, N> &lhs,
-                          const std::array<T, N> &rhs)
+    inline bool operator>(const hy::array<T, N> &lhs,
+                          const hy::array<T, N> &rhs)
     {
         return rhs < lhs;
     }
 
     template <class T, std::size_t N>
-    inline bool operator<=(const std::array<T, N> &lhs,
-                           const std::array<T, N> &rhs)
+    inline bool operator<=(const hy::array<T, N> &lhs,
+                           const hy::array<T, N> &rhs)
     {
         return !(lhs > rhs);
     }
 
     template <class T, std::size_t N>
-    inline bool operator>=(const std::array<T, N> &lhs,
-                           const std::array<T, N> &rhs)
+    inline bool operator>=(const hy::array<T, N> &lhs,
+                           const hy::array<T, N> &rhs)
     {
         return !(lhs < rhs);
     }
 
     template <std::size_t i, class T, std::size_t N>
-    inline constexpr T &get(std::array<T, N> &a) noexcept
+    inline constexpr T &get(hy::array<T, N> &a) noexcept
     {
         static_assert(i < N, "array index is within bounds");
         return a[i];
     }
 
     template <std::size_t i, class T, std::size_t N>
-    inline constexpr T &&get(std::array<T, N> &&a) noexcept
+    inline constexpr T &&get(hy::array<T, N> &&a) noexcept
     {
         static_assert(i < N, "array index is within bounds");
         return hy::move(a[i]);
     }
 
     template <std::size_t i, class T, std::size_t N>
-    inline constexpr const T &get(const std::array<T, N> &a) noexcept
+    inline constexpr const T &get(const hy::array<T, N> &a) noexcept
     {
         static_assert(i < N, "array index is within bounds");
         return a[i];
@@ -255,30 +255,34 @@ namespace hy
 
     // 屁用没有
     template <std::size_t i, class T, std::size_t N>
-    inline constexpr const T &&get(const std::array<T, N> &&a) noexcept
+    inline constexpr const T &&get(const hy::array<T, N> &&a) noexcept
     {
         static_assert(i < N, "array index is within bounds");
         return hy::move(a[i]);
     }
 
-    template <class T, std::size_t N,
-              typename = std::enable_if_t<std::is_swappable_v<T> || N == 0>>
-    inline void swap(std::array<T, N> &lhs,
-                     std::array<T, N> &rhs) noexcept(noexcept(lhs.swap(rhs)))
+    template <typename T, std::size_t N,
+              typename = std::enable_if_t<std::is_swappable_v<T>>>
+    inline void swap(hy::array<T, N> &lhs,
+                     hy::array<T, N> &rhs) noexcept(noexcept(lhs.swap(rhs)))
     {
         lhs.swap(rhs);
     }
 
-    template <class T, std::size_t N>
+    template <typename T>
+    inline void swap(hy::array<T, 0> &lhs,
+                     hy::array<T, 0> &rhs) noexcept(noexcept(lhs.swap(rhs))) {}
+
+    template <typename T, std::size_t N>
     struct tuple_size<hy::array<T, N>> : std::integral_constant<std::size_t, N>
     {
     };
 
-    template <class T>
+    template <typename T>
     inline constexpr std::size_t tuple_size_v = tuple_size<T>::value;
 
     template <std::size_t I, typename T, std::size_t N>
-    struct tuple_element<I, std::array<T, N>>
+    struct tuple_element<I, hy::array<T, N>>
     {
         static_assert(I < N, "array index is in range");
         using type = T;
