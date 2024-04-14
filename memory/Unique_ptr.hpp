@@ -1,7 +1,6 @@
-#pragma once
 #ifndef UNIQUE_PTR_HPP_
 #define UNIQUE_PTR_HPP_
-
+#include <memory>
 #include "Utility.hpp"
 #include <type_traits>
 
@@ -19,248 +18,291 @@ namespace hy
         {
             static_assert(!std::is_void_v<T>, "can't delete pointer to incomplete type");
             static_assert(sizeof(T) > 0, "can't delete pointer to incomplete type");
-            delete ptr;
+            if (!ptr)
+                delete ptr;
         }
     };
 
-    // hy::unique_ptr implement
-    template <typename Tp, typename Dp = hy::default_delete<Tp>>
+    template <typename T, typename D = default_delete<T>>
     class unique_ptr
     {
-        template <typename Up, typename Ep, typename = void>
-        struct Ptr
+        template <typename Tp, typename Dp, typename = void>
+        struct pointer_type
         {
-            using type = Up*;
+            using pointer = T *;
         };
 
-        template <typename Up, typename Ep>
-        struct Ptr<Up, Ep, typename std::remove_reference_t<Ep>::pointer>
+        template <typename Tp, typename Dp>
+        struct pointer_type<Tp, Dp, typename std::remove_reference<Dp>::type::pointer>
         {
-            using type = typename std::remove_reference_t<Ep>::pointer;
+            using pointer = typename std::remove_reference<Dp>::type::pointer
         };
-
-        static_assert(!std::is_rvalue_reference_v<Dp>,
-        "unique_ptr's deleter type must be a function object type"
-		" or an lvalue reference type");
 
     public:
-        using pointer = typename Ptr<Tp, Dp>::type;
-        using element_type = Tp;
-        using deleter_type = Dp;
+        using pointer = typename pointer_type<T, D>::pointer;
+        using element_type = T;
+        using deleter_type = D;
 
     private:
-        pointer pointer_ = nullptr;
-        Dp deleter_ = Dp{};
+        // pointer要满足可空指针 (NullablePointer)  https://zh.cppreference.com/w/cpp/named_req/NullablePointer
+        // pointer必须是可相等比较的，找不到，算了！
+        static_assert(std::is_nothrow_default_constructible_v<pointer>, "Does not meet the requirements of NullablePointer...Default Constructible");
+        static_assert(std::is_nothrow_copy_constructible_v<pointer>, "Does not meet the requirements of NullablePointer...Copy Constructible");
+        static_assert(std::is_nothrow_copy_assignable_v<pointer>, "Does not meet the requirements of NullablePointer...Copy Assignable");
+        static_assert(std::is_nothrow_swappable_v<pointer>, "Does not meet the requirements of NullablePointer...lvalues of the type are Swappable"); // 疑问
+        static_assert(std::is_nothrow_destructible_v<pointer>, "Does not meet the requirements of NullablePointer...Destructible");
+        // 还有一些要求，但是在找不到检测办法了，不过后面的操作也会使用到相关的方法，从而侧面检测了要求。
+
+        static_assert(!std::is_rvalue_reference_v<D>, "Unique_ptr's deleter type must be a function object type or an lvalue reference type");
+        static_assert(std::is_invocable_v<D &, pointer>, "D must invocate T");
+
+        pointer data_ = nullptr; // 无管理默认为空
+        D deleter_;
 
     public:
         pointer get() const noexcept
         {
-            return pointer_;
+            return data_;
         }
 
-        Dp &get_deleter() noexcept
+        D &get_deleter() noexcept
         {
             return deleter_;
         }
 
-        const Dp &get_deleter() const noexcept
+        const D &get_deleter() const noexcept
         {
             return deleter_;
         }
 
         explicit operator bool() const noexcept
         {
+            static_assert(sizeof(T) > 0, "can't compare type to incomplete type");
             return get() != nullptr;
         }
 
         pointer release() noexcept
         {
-            auto ret = get();
-            pointer_ = nullptr;
+            pointer ret = get();
+            data_ = nullptr;
             return ret;
         }
 
-        void reset(pointer ptr = pointer()) noexcept
+        void reset(pointer ptr = pointer{}) noexcept
         {
-            // assert(ptr == get());
-            static_assert(std::is_invocable_v<deleter_type &, pointer>,
-                          "unique_ptr's deleter must be invocable with a pointer");
-            auto old_ptr = get();
-            pointer_ = ptr;
+            // assert(ptr != get());
+            pointer old_ptr = data_;
+            data_ = ptr;
             if (old_ptr)
                 get_deleter()(old_ptr);
         }
 
         void swap(unique_ptr &other) noexcept
         {
-            auto ptemp = other.get();
-            auto dtemp = hy::forward<Dp>(other.get_deleter());
-            other.pointer_ = get();
-            other.deleter_ = hy::forward<Dp>(get_deleter());
-            pointer_ = ptemp;
-            deleter_ = hy::forward<Dp>(dtemp);
+            static_assert(std::is_swappable_v<D>, "deleter must be swappable");
+            std::swap(hy::move(this->data_), hy::move(other.data_));                   // 其动作是无异常的
+            std::swap(hy::forward<D>(this->deleter_), hy::forward<D>(other.deleter_)); // 其动作是不确定是否抛异常的
         }
 
-        std::add_lvalue_reference_t<Tp> operator*() const
-            noexcept(noexcept(*std::declval<pointer>()))
-        {
-            return *get();
-        }
+        typename std::add_lvalue_reference<T>::type operator*() const
+            noexcept(noexcept(*std::declval<pointer>())) { return *get(); }
 
-        pointer operator->() const noexcept
-        {
-            return get();
-        }
+        pointer operator->() const noexcept { return get(); }
 
-        /*
-         *构造不拥有对象的 std::unique_ptr。值初始化存储的指针和存储的删除器。
-         *要求 Deleter 可默认构造且构造不抛异常。
-         *这些重载只有在 std::is_default_constructible<Deleter>::value 为 true
-         *且 Deleter 不是指针类型时才会参与重载决议。
-         */
         constexpr unique_ptr() noexcept = default;
+
         constexpr unique_ptr(std::nullptr_t) noexcept {}
 
-        /*
-         *构造拥有 p 的 std::unique_ptr，以 p 初始化存储的指针，并值初始化存储的删除器。
-         *要求 Deleter 可复制构造且构造不抛异常。
-         *这些重载只有在 std::is_default_constructible<Deleter>::value 为 true 且 Deleter 不是指针类型时才会参与重载决议。
-         *类模板实参推导不选择此构造函数。(C++17 起)
-         */
-        explicit unique_ptr(pointer p) noexcept : pointer_{p} {}
+        explicit unique_ptr(pointer p) noexcept : data_{p} {}
 
-        /*
-         *构造拥有 p 的 std::unique_ptr 对象，以 p 初始化存储的指针，并按下列方式初始化删除器 D（依赖于 D 是否为引用类型）。
-         *a) 若 D 是非引用类型 A，则签名是：
-         *unique_ptr(pointer p, const A& d) noexcept;    (1)	（要求 Deleter 为不抛出可复制构造 (CopyConstructible) ）
-         *unique_ptr(pointer p, A&& d) noexcept;         (2)	（要求 Deleter 为不抛出可移动构造 (MoveConstructible) ）
-         *b) 若 D 是左值引用类型 A&，则签名是：
-         *unique_ptr(pointer p, A& d) noexcept;          (1)
-         *unique_ptr(pointer p, A&& d) = delete;         (2)
-         *c) 若 D 是左值引用类型 const A&，则签名是：
-         *unique_ptr(pointer p, const A& d) noexcept;    (1)
-         *unique_ptr(pointer p, const A&& d) = delete;   (2)
-         *所有情况下删除器从 std::forward<decltype(d)>(d) 初始化。
-         这些重载只有在 std::is_constructible<D, decltype(d)>::value 为 true 时才会参与重载决议。
-         *类模板实参推导不选择这两个构造函数。(C++17 起)
-         */
-        template <typename = std::enable_if_t<std::is_nothrow_copy_constructible_v<Dp>>>
-        unique_ptr(pointer p,const deleter_type& d)noexcept :pointer_{p},deleter_{d} {}
-
-        template <typename = std::enable_if_t<std::is_nothrow_move_constructible_v<Dp>>>
-        unique_ptr(pointer p,std::enable_if_t<!std::is_lvalue_reference_v<Dp>,Dp&&> d)noexcept:pointer_{p},deleter_{hy::move(d)}{}
-
-        template <typename = std::remove_reference_t<Dp>>
-        unique_ptr(pointer , std::enable_if_t<std::is_lvalue_reference_v<Dp>,Dp&&>) = delete;
-
-        /*
-         *通过从 u 转移所有权给 *this 构造 unique_ptr 并存储空指针于 u。
-         *此构造函数仅若 std::is_move_constructible<Deleter>::value 为 true 才参与重载决议。
-         *若 Deleter 不是引用类型，则要求它为不抛出可移动构造 (MoveConstructible)
-         *（若 Deleter 是引用，则 get_deleter() 和 u.get_deleter() 在移动构造后引用相同值）。
-         */
-        template <typename = std::enable_if_t<std::is_nothrow_move_constructible_v<Dp>>,
-                  typename = std::enable_if_t<!std::is_reference_v<Dp>>>
-        unique_ptr(unique_ptr &&u) noexcept
+        template <typename Dp, typename = std::enable_if_t<std::is_constructible_v<D, Dp>>>
+        unique_ptr(pointer p, const Dp &d)
         {
-            pointer_ = u.get();
-            u.pointer_ = nullptr;
-            deleter_ = hy::move(u.get_deleter());
+            static_assert(std::is_nothrow_copy_constructible_v<D>, "D must nothrow copy constructible to D!");
+            data_ = hy::move(p);
+            deleter_ = d;
         }
 
-        template <typename = std::enable_if_t<std::is_move_constructible_v<Dp>>>
-        unique_ptr(unique_ptr &&u)
+        template <typename Dp = D, typename = std::enable_if_t<!std::is_lvalue_reference_v<Dp>>>
+        unique_ptr(pointer p, Dp &&d)
         {
-            pointer_ = u.get();
-            u.pointer_ = nullptr;
-            deleter_ = u.get_deleter();
+            static_assert(std::is_nothrow_move_constructible_v<D>, "D must nothrow move constructible to D!");
+            data_ = hy::move(p);
+            deleter_ = hy::move(d);
         }
 
-        /*
-         *通过从 u 转移所有权给 *this 构造 unique_ptr，其中 u 以指定的删除器（E）构造。它依赖于 E 是否为引用类型，如下：
-         *a) 若 E 是引用类型，则从 u 的删除器复制构造此删除器（要求此构造不抛出）
-         *b) 若 E 不是引用类型，则从 u 的删除器移动构造此删除器（要求此构造不抛出）
-         *此构造函数仅若下列皆为真才参与重载决议：
-         *a) unique_ptr<U, E>::pointer 可隐式转换为 pointer
-         *b) U 不是数组类型
-         *c) Deleter 是引用类型且 E 与 D 为同一类型，或 Deleter 不是引用类型且 E 可隐式转换为 D
-         */
-        template <class U, class E,
-                  typename = std::enable_if_t<std::is_convertible_v<typename unique_ptr<U, E>::pointer, pointer>>, // unique_ptr<U, E>::pointer 可隐式转换为 pointer
-                  typename = std::enable_if_t<!std::is_array_v<U>>,                                                     // U 不是数组类型
-                  typename = std::enable_if_t<std::is_reference_v<E>>,                                                  // Deleter 是引用类型、若 E 是引用类型
-                  typename = std::enable_if_t<std::is_same_v<E, Dp>>,                                                   // E 与 D 为同一类型
-                  typename = std::enable_if_t<std::is_nothrow_copy_constructible_v<Dp>>>                                // 若 E 是引用类型，则从 u 的删除器复制构造此删除器（要求此构造不抛出）
-        unique_ptr(unique_ptr<U, E> &&u) noexcept : pointer_{u.get()}, deleter_{u.get_deleter()}
+        template <typename Dp = D, typename = std::enable_if_t<std::is_lvalue_reference_v<Dp>>>
+        unique_ptr(pointer p, Dp &&d) = delete;
+
+        template <typename U, typename E,
+                  typename = std::enable_if_t<std::is_convertible_v<typename unique_ptr<U, E>::pointer, pointer> && !std::is_array_v<U> && std::is_reference_v<E> && std::is_same_v<E, D>>>
+        unique_ptr(unique_ptr<U, E> &&u) noexcept : data_{hy::move(u.data_)}, deleter_{u.get_deleter()}
         {
-            u.pointer_ = nullptr;
+            static_assert(std::is_nothrow_copy_constructible_v<E>, "E must nothrow copy constructible to D!");
+            u.data_ = nullptr;
         }
 
-        template <class U, class E,
-                  typename = std::enable_if_t<std::is_convertible_v<typename unique_ptr<U, E>::pointer, pointer>>, // //unique_ptr<U, E>::pointer 可隐式转换为 pointer
-                  typename = std::enable_if_t<!std::is_array_v<U>>,                                                     // U 不是数组类型
-                  typename = std::enable_if_t<!std::is_reference_v<E>>,                                                 // Deleter 不是引用类型、若 E 不是引用类型
-                  typename = std::enable_if_t<std::is_convertible_v<E, Dp>>,                                            // E 可隐式转换为 D
-                  typename = std::enable_if_t<std::is_nothrow_move_constructible_v<Dp>>>                                // 若 E 不是引用类型，则从 u 的删除器移动构造此删除器（要求此构造不抛出）
-        unique_ptr(unique_ptr<U, std::remove_reference_t<E>> &&u) noexcept : pointer_{u.get()}, deleter_{hy::move(u.get_deleter())}
+        template <typename U, typename E,
+                  typename = std::enable_if_t<std::is_convertible_v<typename unique_ptr<U, E>::pointer, pointer> && !std::is_array_v<U> && !std::is_reference_v<E> && std::is_convertible_v<E, D>>>
+        unique_ptr(unique_ptr<U, E> &&u) noexcept : data_{hy::move(u.data_)}, deleter_{hy::move(u.get_deleter())}
         {
-            u.pointer_ = nullptr;
+            static_assert(std::is_nothrow_move_constructible_v<D>, "E must nothrow move constructible to D!");
+            u.data_ = nullptr;
         }
 
         unique_ptr(const unique_ptr &) = delete;
 
         ~unique_ptr()
         {
-            if (!get() == nullptr)
+            if (get() == nullptr)
                 get_deleter()(get());
         }
 
-
-        /*
-        移动赋值运算符。
-        *从 r 转移所有权到 *this，如同在调用 reset(r.release()) 后立即将 std::forward<Deleter>(r.get_deleter()) 赋给 get_deleter()。
-        *此重载只有在 std::is_move_assignable<Deleter>::value 是 true 时才会参与重载决议。
-        *如果 Deleter 不是引用类型，那么在以下情况下行为未定义：
-        *Deleter 不可移动赋值 (MoveAssignable) 。
-        *将 Deleter 类型的右值赋给 get_deleter() 会抛出异常。
-        *否则（Deleter 是引用类型），那么在以下情况下行为未定义：
-        *std::remove_reference<Deleter>::type 不可复制赋值 (CopyAssignable) 。
-        *将 Deleter 类型的左值赋给 get_deleter() 会抛出异常。
-        */
-       template <typename = std::enable_if_t<std::is_move_constructible_v<Dp>>>
-        unique_ptr& operator=( unique_ptr&& r ) noexcept{
+        template <typename = std::enable_if_t<std::is_move_assignable_v<D>>>
+        unique_ptr &operator=(unique_ptr &&r) noexcept
+        {
             reset(r.release());
-            get_deleter() = hy::forward<Dp>(r.get_deleter());
-            return *this;
+            get_deleter() = std::forward<D>(r.get_deleter());
         }
 
-        /*
-        *转换赋值运算符。从 r 转移所有权到 *this，如同在调用 reset(r.release()) 后立即将 std::forward<E>(r.get_deleter()) 赋给 get_deleter()。
-        *对于主模板，此重载只有在满足以下所有条件时才会参与重载决议：
-        *U 不是数组类型。
-        *unique_ptr<U, E>::pointer 可以隐式转换到 pointer。
-        *std::is_assignable<Deleter&, E&&>::value 是 true。
-        *如果 E 不是引用类型，那么在将 E 类型的右值赋给 get_deleter() 会非良构或者抛出异常时行为未定义。
-        *否则（E 是引用类型），那么在将 E 类型的左值赋给 get_deleter() 会非良构或者抛出异常时行为未定义。
-        */
-        template< class U, class E ,
-        typename = std::enable_if_t<std::is_convertible_v<unique_ptr<U, E>::pointer,pointer>>,
-        typename = std::enable_if_t<std::is_assignable_v<Dp&,E&&>>>
-        unique_ptr& operator=( unique_ptr<U, E>&& r ) noexcept{
+        template <class U, class E,
+                  std::enable_if_t<std::is_array_v<U> && std::is_convertible_v<typename unique_ptr<U, E>::pointer, pointer> && std::is_assignable_v<D &, E &&>>>
+        unique_ptr &operator=(unique_ptr<U, E> &&r) noexcept
+        {
             reset(r.release());
             get_deleter() = hy::forward<E>(r.get_deleter());
-            return *this;
         }
 
-        unique_ptr& operator=( std::nullptr_t ) noexcept{
+        unique_ptr &operator=(std::nullptr_t) noexcept
+        {
             reset();
-            return *this;
         }
 
-        unique_ptr& operator=( const unique_ptr& ) = delete;
+        unique_ptr &operator=(const unique_ptr &) = delete;
 
-    };
+    }; // class unique_ptr
 
-}
+    template <class T, class... Args>
+    std::enable_if_t<!std::is_array<T>::value, hy::unique_ptr<T>> make_unique(Args &&...args)
+    {
+        return hy::unique_ptr<T>(new T(std::forward<Args>(args)...));
+    }
 
-#endif
+    template <class T1, class D1, class T2, class D2>
+    bool operator==(const unique_ptr<T1, D1> &x, const unique_ptr<T2, D2> &y)
+    {
+        return x.get() == y.get();
+    }
+
+    template <class T1, class D1, class T2, class D2>
+    bool operator!=(const unique_ptr<T1, D1> &x, const unique_ptr<T2, D2> &y)
+    {
+        return x.get() != y.get();
+    }
+
+    template <class T1, class D1, class T2, class D2>
+    bool operator<(const unique_ptr<T1, D1> &x, const unique_ptr<T2, D2> &y)
+    {
+        using CT = typename std::common_type<typename unique_ptr<T1, D1>::pointer, typename unique_ptr<T2, D2>::pointer>::type;
+        return std::less<CT>()(x.get(), y.get());
+    }
+
+    template <class T1, class D1, class T2, class D2>
+    bool operator<=(const unique_ptr<T1, D1> &x, const unique_ptr<T2, D2> &y)
+    {
+        return !(y < x);
+    }
+
+    template <class T1, class D1, class T2, class D2>
+    bool operator>(const unique_ptr<T1, D1> &x, const unique_ptr<T2, D2> &y)
+    {
+        return y < x;
+    }
+
+    template <class T1, class D1, class T2, class D2>
+    bool operator>=(const unique_ptr<T1, D1> &x, const unique_ptr<T2, D2> &y)
+    {
+        return !(x < y);
+    }
+
+    template <class T, class D>
+    bool operator==(const unique_ptr<T, D> &x, std::nullptr_t) noexcept
+    {
+        return !x;
+    }
+
+    template <class T, class D>
+    bool operator==(std::nullptr_t, const unique_ptr<T, D> &x) noexcept
+    {
+        return !x;
+    }
+
+    template <class T, class D>
+    bool operator!=(const unique_ptr<T, D> &x, std::nullptr_t) noexcept
+    {
+        return (bool)x;
+    }
+
+    template <class T, class D>
+    bool operator!=(std::nullptr_t, const unique_ptr<T, D> &x) noexcept
+    {
+        return (bool)x;
+    }
+
+    template <class T, class D>
+    bool operator<(const unique_ptr<T, D> &x, std::nullptr_t)
+    {
+        return std::less<unique_ptr<T, D>::pointer>()(x.get(), nullptr);
+    }
+
+    template <class T, class D>
+    bool operator<(std::nullptr_t, const unique_ptr<T, D> &y)
+    {
+        return std::less<unique_ptr<T, D>::pointer>()(nullptr, y.get());
+    }
+
+    template <class T, class D>
+    bool operator<=(const unique_ptr<T, D> &x, std::nullptr_t)
+    {
+        return !(nullptr < x);
+    }
+
+    template <class T, class D>
+    bool operator<=(std::nullptr_t, const unique_ptr<T, D> &y)
+    {
+        return !(y < nullptr);
+    }
+
+    template <class T, class D>
+    bool operator>(const unique_ptr<T, D> &x, std::nullptr_t)
+    {
+        return nullptr < x;
+    }
+
+    template <class T, class D>
+    bool operator>(std::nullptr_t, const unique_ptr<T, D> &y)
+    {
+        return y < nullptr;
+    }
+
+    template <class T, class D>
+    bool operator>=(const unique_ptr<T, D> &x, std::nullptr_t)
+    {
+        return !(x < nullptr);
+    }
+
+    template <class T, class D>
+    bool operator>=(std::nullptr_t, const unique_ptr<T, D> &y)
+    {
+        return !(nullptr < y);
+    }
+
+    template <class T, class D, typename = std::enable_if_t<std::is_swappable_v<D>>>
+    void swap(hy::unique_ptr<T, D> &lhs, hy::unique_ptr<T, D> &rhs) noexcept
+    {
+        lhs.swap(rhs);
+    }
+
+} // namespace hy
+
+#endif // UNIQUE_HPP_

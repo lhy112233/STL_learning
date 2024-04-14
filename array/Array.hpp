@@ -1,7 +1,7 @@
-#pragma once
 #ifndef ARRAY_HPP_
 #define ARRAY_HPP_
 
+#include <array>
 #include <cstddef>
 #include <type_traits>
 #include <iterator>
@@ -25,10 +25,17 @@ namespace hy
         struct type_
         {
             char unuse[1];
-            constexpr operator T*() const noexcept { return nullptr; }
-            constexpr T &operator[](std::size_t) const noexcept { return reinterpret_cast<Tp &>(const_cast<char &>(unuse[0])); }
+            constexpr operator T *() const noexcept { return nullptr; }
+            constexpr T &operator[](std::size_t index) const noexcept { return reinterpret_cast<T &>(const_cast<char &>(unuse[index])); }
         };
     };
+
+    template <typename T,std::size_t SIZE>
+    inline constexpr bool is_array_nothrow_swappable_v = std::is_nothrow_swappable_v<T>;
+
+    template <typename T>
+    inline constexpr bool is_array_nothrow_swappable_v<T,0> = true;
+
 
     template <typename T, std::size_t N>
     struct array
@@ -116,7 +123,7 @@ namespace hy
 
         constexpr const_iterator cbegin() const noexcept
         {
-            return std::addressof(data_[N]);
+            return std::addressof(data_[0]);
         }
 
         constexpr iterator end() noexcept
@@ -184,11 +191,12 @@ namespace hy
             std::fill_n(begin(), size(), value);
         }
 
-        void swap(array &other) noexcept(std::is_nothrow_swappable_v<T>)
+        void swap(array &other) noexcept(is_array_nothrow_swappable_v<T,0>)
         {
             std::swap_ranges(begin(), end(), other.begin());
         }
-    }; // class arrayy
+
+    }; // class array
 
     template <class T, std::size_t N>
     inline bool operator==(const hy::array<T, N> &lhs,

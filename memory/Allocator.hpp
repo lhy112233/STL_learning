@@ -1,4 +1,3 @@
-#pragma once
 #ifndef ALLOCATOR_HPP_
 #define ALLOCATOR_HPP_
 
@@ -12,8 +11,9 @@ namespace hy
 {
 
     template <typename T>
-    struct allocator
+    class allocator
     {
+        public:
         using value_type = T;
         using pointer [[deprecated]] = T *;
         using const_pointer [[deprecated]] = const T *;
@@ -26,8 +26,13 @@ namespace hy
         template <typename U>
         struct [[deprecated]] rebind
         {
-            typedef allocator<U> other;
+            using other = allocator<U>;
         };
+
+        allocator() noexcept = default;
+        allocator(const allocator&) noexcept = default;
+        template <typename U>
+        allocator(const allocator<U>&) noexcept = default;
     };
 
     template <>
