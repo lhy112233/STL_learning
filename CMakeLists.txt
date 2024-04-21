@@ -9,6 +9,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/src)
 add_subdirectory(${CMAKE_SOURCE_DIR}/test/array_test)
-# add_subdirectory(${CMAKE_SOURCE_DIR}/test/memory_test)
+add_subdirectory(${CMAKE_SOURCE_DIR}/test/memory_test)
 
 

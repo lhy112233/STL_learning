@@ -11,8 +11,8 @@ namespace hy {
 template <class T> struct default_delete {
   constexpr default_delete() noexcept = default;
 
-  template <class U,
-            typename = std::enable_if_t<std::is_convertible_v<U *, T *>>>
+  template <class U,typename Tp = T,
+            typename = std::enable_if_t<std::is_convertible_v<U *, Tp *>>>
   default_delete(const default_delete<U> &d) noexcept {}
 
   void operator()(T *ptr) const {
@@ -99,9 +99,9 @@ public:
 
   void swap(unique_ptr &other) noexcept {
     static_assert(std::is_swappable_v<D>, "deleter must be swappable");
-    std::swap(hy::move(this->data_), hy::move(other.data_)); // 其动作是无异常的
-    std::swap(hy::forward<D>(this->deleter_),
-              hy::forward<D>(other.deleter_)); // 其动作是不确定是否抛异常的
+    std::swap(this->data_, other.data_); // 其动作是无异常的
+    std::swap(this->deleter_,
+              other.deleter_); // 其动作是不确定是否抛异常的
   }
 
   typename std::add_lvalue_reference<T>::type operator*() const
@@ -127,8 +127,7 @@ public:
       typename Dp = deleter_type,
       typename = std::enable_if_t<std::is_nothrow_move_constructible_v<Dp>>>
   unique_ptr(pointer p,
-             std::enable_if_t<!std::is_lvalue_reference_v<deleter_type>,
-                              deleter_type &&>
+             std::enable_if_t<!std::is_lvalue_reference_v<Dp>, deleter_type &&>
                  deleter) noexcept
       : data_{p}, deleter_{std::move(deleter)} {}
 
@@ -136,21 +135,21 @@ public:
       typename Dp = deleter_type,
       typename = std::enable_if_t<std::is_nothrow_move_constructible_v<Dp>>>
   unique_ptr(pointer p,
-             std::enable_if_t<std::is_lvalue_reference_v<deleter_type>,
-                              deleter_type &&>) = delete;
+             std::enable_if_t<std::is_lvalue_reference_v<Dp>,
+                              std::remove_reference_t<deleter_type> &&>) = delete;
 
   unique_ptr(unique_ptr &&u) noexcept
-      : data_{u.release()}, deleter_{std::forward<deleter_>(u.release())} {}
+      : data_{u.release()}, deleter_{std::forward<D>(u.get_deleter())} {}
 
   template <
-      typename U, typename E,
+      typename U, typename E,typename Tp = pointer,typename Dp = deleter_type,
       typename = std::enable_if_t<
           std::is_convertible_v<typename hy::unique_ptr<U, E>::pointer,
-                                pointer> &&
+                                Tp> &&
           !std::is_array_v<U>>,
       typename = std::enable_if_t<
-          (std::is_reference_v<E>) && std::is_same_v<E, deleter_type> ||
-          (!std::is_reference_v<E> && std::is_convertible_v<E, deleter_type>)>>
+          (std::is_reference_v<E>) && std::is_same_v<E, Dp> ||
+          (!std::is_reference_v<E> && std::is_convertible_v<E, Dp>)>>
   unique_ptr(unique_ptr<U, E> &&u) noexcept
       : data_{u.release()}, deleter_{std::forward<E>(u.get_deleter())} {}
 
@@ -161,23 +160,24 @@ public:
       get_deleter()(get());
   }
 
-  template <typename Dp = D, typename = std::enable_if_t<std::is_move_assignable_v<Dp>>>
+  template <typename Dp = D,
+            typename = std::enable_if_t<std::is_move_assignable_v<Dp>>>
   unique_ptr &operator=(unique_ptr &&r) noexcept {
     reset(r.release());
     get_deleter() = std::forward<D>(r.get_deleter());
   }
 
-  template <class U, class E,
+  template <class U, class E,typename Tp = pointer,typename Dp = deleter_type,
             std::enable_if_t<std::is_array_v<U> &&
                              std::is_convertible_v<
-                                 typename unique_ptr<U, E>::pointer, pointer> &&
-                             std::is_assignable_v<D &, E &&>>>
+                                 typename unique_ptr<U, E>::pointer, Tp> &&
+                             std::is_assignable_v<Dp &, E &&>>>
   unique_ptr &operator=(unique_ptr<U, E> &&r) noexcept {
     reset(r.release());
     get_deleter() = hy::forward<E>(r.get_deleter());
   }
 
-  unique_ptr &operator=(std::nullptr_t) noexcept { reset(); }
+  unique_ptr &operator=(std::nullptr_t) noexcept { reset(); return *this;}
 
   unique_ptr &operator=(const unique_ptr &) = delete;
 
