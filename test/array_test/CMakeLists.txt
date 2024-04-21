@@ -1,3 +1,4 @@
 add_executable(array_test array_test.cc)
 
-include_directories(${CMAKE_SOURCE_DIR}/array ${CMAKE_SOURCE_DIR}/utility)
+target_link_libraries(array_test PRIVATE hy_STL)
+

@@ -3,7 +3,6 @@
 
 #include <type_traits>
 #include <cstddef>
-#include <memory>
 
 // 即给定分配器的任何实例都可交换?
 
@@ -32,7 +31,7 @@ namespace hy
         allocator() noexcept = default;
         allocator(const allocator&) noexcept = default;
         template <typename U>
-        allocator(const allocator<U>&) noexcept = default;
+        allocator(const allocator<U>&) noexcept {};
     };
 
     template <>

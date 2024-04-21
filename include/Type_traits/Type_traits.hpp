@@ -1,6 +1,7 @@
-#include <type_traits>
 #ifndef TYPR_TRAITS_HPP_
 #define TYPR_TRAITS_HPP_
+
+#include <cstddef>  //nullptr_t
 
 namespace hy
 {

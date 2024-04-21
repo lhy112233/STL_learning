@@ -1,6 +1,7 @@
 #ifndef UTILITY_HPP_
 #define UTILITY_HPP_
 #include <type_traits>
+#include "Type_traits.hpp"
 
 namespace hy
 {
@@ -58,7 +59,7 @@ namespace hy
 
     template <typename B1, typename... Bn>
     struct conjunction<B1, Bn...>
-        : hy::conditional_t<bool(B1::value), conjunction<Bn...>, B1>
+        : std::conditional_t<bool(B1::value), conjunction<Bn...>, B1>
     {
     }; // End struct conjunction
 

@@ -1,7 +1,0 @@
-set(LIB_NAME LEARNING_FUTURE_LIB)
-
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} LEARNING_FUTURE_FILE)
-
-add_library(${LIB_NAME})
-
-target_sources(${LIB_NAME} PUBLIC ${LEARNING_FUTURE_FILE})
