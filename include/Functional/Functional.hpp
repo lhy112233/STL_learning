@@ -2,9 +2,42 @@
 #define FUNCTIONAL_HPP_
 
 #include "Type_traits.hpp"
+#include <functional>
 #include <type_traits>
+#include <function.hpp>
+std::function<int()> a;
 
 namespace hy {
+
+template <typename>
+class function;
+
+template <typename Res,typename...Args>
+class function<Res(Args...)>{
+
+    public:
+    using result_type = Res;
+
+    template
+
+    using argument_type [[deprecated]] = ;
+    using first_argument_type [[deprecated]] = ;
+    using second_argument_type [[deprecated]] = ;
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 template <class T = void> 
 struct less 
@@ -18,11 +51,6 @@ struct less
     }
 };
 
-template<>
-struct less<void>
-{
-    using is_transpa
-};
 
 } // namespace hy
 
