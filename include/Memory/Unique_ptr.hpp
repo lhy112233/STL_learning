@@ -20,7 +20,6 @@ template <class T> struct default_delete {
                   "can't delete pointer to incomplete type");
     static_assert(sizeof(T) > static_cast<std::size_t>(0),
                   "can't delete pointer to incomplete type");
-    if (!ptr)
       delete ptr;
   }
 };
