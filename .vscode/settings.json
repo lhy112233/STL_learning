@@ -9,7 +9,7 @@
         "-I${workspaceFolder}/include/Type_traits",
         "-I${workspaceFolder}/include/Functional",
         "-I${workspaceFolder}/include/Tuple",
-        "-I${workspaceFolder}/include",
+        "-I${workspaceFolder}/include/**",
         ],
     "files.associations": {
         "iostream": "cpp",
