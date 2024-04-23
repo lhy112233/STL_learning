@@ -2,11 +2,10 @@
 #define ALLOCATOR_HPP_
 
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <new>
 #include <type_traits>
-#include <limits>
-
 
 // std::allocator<int> a;
 // 即给定分配器的任何实例都可交换?
@@ -56,12 +55,29 @@ public:
     return std::numeric_limits<size_type>::max() / sizeof(value_type);
   }
 
-  // [[deprecated]] T *allocate(std::size_t n, const void *hint) {}
+  // 和无hint版本行为一致。无法实现hint的就近分配(libcxx的实现也无法达到此目标)
+  [[deprecated]] T *allocate(std::size_t n, const void *hint) {
+    if (std::numeric_limits<std::size_t>::max() / sizeof(T) < n)
+      throw std::bad_array_new_length{};
+    return static_cast<T *>(::operator new(n * sizeof(T)));
+  }
 
   T *allocate(std::size_t n) {
     if (std::numeric_limits<std::size_t>::max() / sizeof(T) < n)
       throw std::bad_array_new_length{};
     return static_cast<T *>(::operator new(n * sizeof(T)));
+  }
+
+  void deallocate(T *p, std::size_t n) { ::operator delete(p, n); }
+
+  template< class U, class... Args >
+  [[deprecated]] void construct( U* p, Args&&... args ){
+    ::new (static_cast<void*>(p)) T(std::forward<Args>(args)...);
+}
+
+  template< class U >
+  [[deprecated]] void destroy( U* p ){
+    p->~U();
   }
 };
 
