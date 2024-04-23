@@ -25,12 +25,13 @@
 
 * array             100%
 * memory 20%
-    * allocator     10%
-    * unique_ptr    90%
+    * allocator     100%
+    * unique_ptr    95%
     * shared_ptr    0%
     * weak_ptr      0%
 * type_traits       5%(只能完成一部分，因有的代码需要编译器支持)
 * utility           5%
+* iterator          0%
 * vector            0%
 * list              0%
 * deque             0%
@@ -41,11 +42,12 @@
 * pair              0%
 * tuple             0%
 * initializer_list  无法实现，由编译器底层调用
-* thread            不打算实现，因为封装底层api太费劲
-* mutex             不打算实现，因为封装底层api太费劲
+* thread            看情况实现
+* mutex             看情况实现
 * future            0%
 * unordered_map     0%
 * unordered_set     0%
+* functional        0%
 * algorithm         0%
     * for_each      0%
     * swap          0%
