@@ -3,7 +3,7 @@
 
 #include "Unique_ptr.hpp"
 #include "Allocator.hpp"
-
+#include "Pointer_traits.hpp"
 
     /*
     std::addressof无法使用现有标准工具实现，因为 reinterpret_cast 不能用于常量表达式(constexpr)。需要编译器支持。
