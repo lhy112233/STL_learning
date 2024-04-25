@@ -37,11 +37,14 @@ public:
     using other = allocator<U>;
   };
 
-  allocator() noexcept = default;
+  /*Constructors*/
+  allocator() noexcept = default;  
   allocator(const allocator &) noexcept = default;
   template <typename U> allocator(const allocator<U> &) noexcept {};
 
+  /*Destructor*/
   ~allocator() = default;
+
 
   [[deprecated]] pointer address(reference x) const noexcept {
     return std::addressof(x);
@@ -64,7 +67,7 @@ public:
     return static_cast<T *>(::operator new(n * sizeof(T)));
   }
 
-  void deallocate(T *p, std::size_t n) { ::operator delete(p, n); }
+  void deallocate(T *p, std::size_t n) { ::operator delete(p); }
 
   size_type max_size() const noexcept {
     return std::numeric_limits<size_type>::max() / sizeof(value_type);
@@ -76,9 +79,11 @@ public:
   }
 
   template <class U> [[deprecated]] void destroy(U *p) { p->~U(); }
-};
+}; /// class allocator
 
 template <> struct [[deprecated]] allocator<void> {
+public:
+  /*Member types*/
   using value_type = void;
   using pointer [[deprecated]] = void *;
   using const_pointer [[deprecated]] = const void *;
