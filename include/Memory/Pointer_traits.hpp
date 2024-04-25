@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <memory>
 #include <type_traits>
+std::pointer_traits<int> a;
 
 namespace hy {
 namespace detail {
