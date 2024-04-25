@@ -11,7 +11,7 @@ namespace hy {
 template <class T> struct default_delete {
   constexpr default_delete() noexcept = default;
 
-  template <class U,typename Tp = T,
+  template <class U, typename Tp = T,
             typename = std::enable_if_t<std::is_convertible_v<U *, Tp *>>>
   default_delete(const default_delete<U> &d) noexcept {}
 
@@ -20,7 +20,7 @@ template <class T> struct default_delete {
                   "can't delete pointer to incomplete type");
     static_assert(sizeof(T) > static_cast<std::size_t>(0),
                   "can't delete pointer to incomplete type");
-      delete ptr;
+    delete ptr;
   }
 };
 
@@ -67,7 +67,7 @@ private:
   static_assert(std::is_invocable_v<D &, pointer>, "D must invocate T");
 
   pointer data_ = nullptr; // 无管理默认为空
-  D deleter_;
+  D deleter_ = D{};
 
 public:
   pointer get() const noexcept { return data_; }
@@ -135,16 +135,16 @@ public:
       typename = std::enable_if_t<std::is_nothrow_move_constructible_v<Dp>>>
   unique_ptr(pointer p,
              std::enable_if_t<std::is_lvalue_reference_v<Dp>,
-                              std::remove_reference_t<deleter_type> &&>) = delete;
+                              std::remove_reference_t<deleter_type> &&>) =
+      delete;
 
   unique_ptr(unique_ptr &&u) noexcept
       : data_{u.release()}, deleter_{std::forward<D>(u.get_deleter())} {}
 
   template <
-      typename U, typename E,typename Tp = pointer,typename Dp = deleter_type,
+      typename U, typename E, typename Tp = pointer, typename Dp = deleter_type,
       typename = std::enable_if_t<
-          std::is_convertible_v<typename hy::unique_ptr<U, E>::pointer,
-                                Tp> &&
+          std::is_convertible_v<typename hy::unique_ptr<U, E>::pointer, Tp> &&
           !std::is_array_v<U>>,
       typename = std::enable_if_t<
           (std::is_reference_v<E>) && std::is_same_v<E, Dp> ||
@@ -166,17 +166,20 @@ public:
     get_deleter() = std::forward<D>(r.get_deleter());
   }
 
-  template <class U, class E,typename Tp = pointer,typename Dp = deleter_type,
-            std::enable_if_t<std::is_array_v<U> &&
-                             std::is_convertible_v<
-                                 typename unique_ptr<U, E>::pointer, Tp> &&
-                             std::is_assignable_v<Dp &, E &&>>>
+  template <class U, class E, typename Tp = pointer, typename Dp = deleter_type,
+            std::enable_if_t<
+                std::is_array_v<U> &&
+                std::is_convertible_v<typename unique_ptr<U, E>::pointer, Tp> &&
+                std::is_assignable_v<Dp &, E &&>>>
   unique_ptr &operator=(unique_ptr<U, E> &&r) noexcept {
     reset(r.release());
     get_deleter() = hy::forward<E>(r.get_deleter());
   }
 
-  unique_ptr &operator=(std::nullptr_t) noexcept { reset(); return *this;}
+  unique_ptr &operator=(std::nullptr_t) noexcept {
+    reset();
+    return *this;
+  }
 
   unique_ptr &operator=(const unique_ptr &) = delete;
 
