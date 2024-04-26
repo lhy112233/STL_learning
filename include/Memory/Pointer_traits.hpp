@@ -28,6 +28,8 @@ private:
     using difference_type = typename Ptr::difference_type;
   };
 
+  class undefined;
+
   template <typename Tp,typename Up,typename = void>
   struct rebind_type{};
 
@@ -47,7 +49,7 @@ public:
   using rebind = typename rebind_type<Ptr, U>::type;
 
   static pointer pointer_to(element_type &r) { return Ptr::pointer_to(r); }
-};
+};  //template <typename Ptr> struct pointer_traits 
 
 template <typename T> struct pointer_traits<T *> {
   using pointer = T *;
@@ -59,7 +61,7 @@ template <typename T> struct pointer_traits<T *> {
   static pointer pointer_to(element_type &r) noexcept {
     return std::addressof(r);
   }
-};
+};  //template <typename T> struct pointer_traits<T *>
 
 } // namespace hy
 
