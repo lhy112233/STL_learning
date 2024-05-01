@@ -64,7 +64,7 @@ public:
     return static_cast<T *>(::operator new(n * sizeof(T)));
   }
 
-  void deallocate(T *p, std::size_t n) { ::operator delete(p, n); }
+  void deallocate(T *p, std::size_t n) { ::operator delete(p); }
 
   size_type max_size() const noexcept {
     return std::numeric_limits<size_type>::max() / sizeof(value_type);
