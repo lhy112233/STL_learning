@@ -34,34 +34,7 @@ namespace hy
 
     // End struct integral_constant
 
-    // Begin std::conditional
-    template <bool B, class T, class F>
-    struct conditional
-    {
-        using type = T;
-    };
 
-    template <class T, class F>
-    struct conditional<false, T, F>
-    {
-        using type = F;
-    }; // End std::conditional
-
-    // Begin struct conjunction
-    template <typename...>
-    struct conjunction : hy::true_type
-    {
-    };
-    template <typename B1>
-    struct conjunction<B1> : B1
-    {
-    };
-
-    template <typename B1, typename... Bn>
-    struct conjunction<B1, Bn...>
-        : std::conditional_t<bool(B1::value), conjunction<Bn...>, B1>
-    {
-    }; // End struct conjunction
 
 }
 
