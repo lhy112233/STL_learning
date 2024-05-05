@@ -59,6 +59,9 @@ inline constexpr bool disjunction_v = disjunction<B...>::value;
 template <class B>
 struct negation : hy::bool_constant<!static_cast<bool>(B::value)> {};
 
+template<typename... T>
+using void_t = void;
+
 template <typename T, typename U> struct is_same : hy::false_type {};
 
 template <typename T> struct is_same<T, T> : hy::true_type {};
