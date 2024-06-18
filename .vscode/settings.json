@@ -94,5 +94,12 @@
         "version": "cpp"
     },
     "cmake.options.statusBarVisibility": "visible",
+    "workbench.colorCustomizations": {
+        "editor.lineHighlightBackground": "#9421682d",
+        "editor.lineHighlightBorder": "#9fced11f",
+        "activityBar.background": "#04360C",
+        "titleBar.activeBackground": "#054B11",
+        "titleBar.activeForeground": "#EFFEF1"
+    },
 
 }
