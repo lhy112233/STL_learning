@@ -13,7 +13,7 @@
 ```C++
 template<
     class T,
-    class Deleter = std::default_delete<T>      (C++11起)(1)
+    class Deleter = std::default_delete<T>     
 > class unique_ptr;
 ```
 
@@ -43,7 +43,7 @@ Deleter 必须是**函数对象 (FunctionObject)** 或**到函数对象 (Functio
 
 ### **std::default_delete** 模板声明
 ``` C++
-template< typename T > struct default_delete;          (C++11起)(1)
+template< typename T > struct default_delete;  
 ```
 * 非特化的 default_delete 用 delete 解分配单个对象的内存。
 * 模板形参*T*是此删除器类型需要删除的对象的类型。<br>简单来说就是此类要处理的类型。

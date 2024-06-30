@@ -99,6 +99,10 @@ bool operator!=(const allocator<T1> &lhs, const allocator<T2> &rhs) noexcept {
   return false;
 }
 
+struct allocator_arg_t { explicit allocator_arg_t() = default; };
+
+inline constexpr std::allocator_arg_t allocator_arg = std::allocator_arg_t();
+
 } // namespace hy
 
 #endif // ALLOCATOR_HPP_
