@@ -30,8 +30,8 @@ template <typename T, typename D = default_delete<T>> class unique_ptr {
   };
 
   template <typename Tp, typename Dp>
-  struct pointer_type<Tp, Dp,
-                      typename std::remove_reference<Dp>::type::pointer> {
+  struct pointer_type<
+      Tp, Dp, std::void_t<typename std::remove_reference<Dp>::type::pointer>> {
     using pointer = typename std::remove_reference<Dp>::type::pointer;
   };
 

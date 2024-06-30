@@ -135,6 +135,14 @@ template <typename T> struct remove_reference<T &&> {
 template <typename T>
 using remove_reference_t = typename remove_reference<T>::type;
 
+template<typename T>
+struct alignment_of : hy::integral_constant<std::size_t, alignof(T)>{};
+
+template<typename T>
+inline constexpr std::size_t alignment_of_v = hy::alignment_of<T>::value;
+
+
+
 } // namespace hy
 
 #endif // TYPR_TRAITS_HPP_
