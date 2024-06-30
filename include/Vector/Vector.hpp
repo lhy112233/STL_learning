@@ -4,8 +4,29 @@
 #include "Allocator.hpp"
 #include "Allocator_traits.hpp"
 #include <cstddef>
+#include <type_traits>
 
 namespace hy {
+namespace detail {
+template <typename T, typename = void> struct vector_iterator {
+  using iterator = T *;
+}; /// struct vector_iterator
+
+template <typename T>
+struct vector_iterator<T, std::void_t<typename T::pointer>> {
+  using iterator = typename T::pointer;
+};
+
+template <typename T, typename = void> struct vector_const_iterator {
+  using const_iterator = const T *;
+}; /// struct vector_const_iterator
+
+template <typename T>
+struct vector_const_iterator<T, std::void_t<typename T::const_pointer>> {
+  using const_iterator = typename T::const_pointer;
+}; /// struct vector_const_iterator
+
+} // namespace detail
 
 template <typename T, typename Allocator = hy::allocator<T>> class vector {
 public:
@@ -19,73 +40,51 @@ public:
   using pointer = typename hy::allocator_traits<Allocator>::pointer;
   using const_pointer =
       typename std::allocator_traits<Allocator>::const_pointer;
-  // using iterator = ;
-  // using const_iterator = ;
-  // using reverse_iterator = typename std::reverse_iterator<iterator>;
-  // using const_reverse_iterator = typename
-  // std::reverse_iterator<const_iterator>;
+  using iterator = typename hy::detail::vector_iterator<T>;
+  using const_iterator = typename hy::detail::vector_const_iterator<T>;
+  using reverse_iterator = typename std::reverse_iterator<iterator>;
+  using const_reverse_iterator = typename std::reverse_iterator<const_iterator>;
 
   /*Member functions*/
-
   /*Constructors*/
-    vector() noexcept(noexcept(Allocator())){
+  vector() noexcept(noexcept(Allocator())) {}
 
-    }
+  /*Destructors*/
+  ~vector(){}
 
-/*Destructors*/
+  /*Assignments*/
 
+  /*Element access functions*/
 
-/*Assignments*/
+  /*Iterators functions*/
 
+  /*Capacity functions*/
+  bool empty() const noexcept { return p_begin_ == p_end_; }
 
-/*Element access functions*/
+  size_type size() const noexcept { return std::distance(p_begin_, p_end_); }
 
-
-/*Iterators functions*/
-
-
-/*Capacity functions*/
-bool empty() const noexcept{
-    return p_begin_ == p_end_;
-}
-
-size_type size() const noexcept{
-    return  std::distance(p_begin_,p_end_);
-}
-
-size_type max_size() const noexcept{
+  size_type max_size() const noexcept {
     return std::numeric_limits<difference_type>::max();
-}
+  }
 
-void reserve( size_type new_cap ){
-/*TODO*/
-}
+  void reserve(size_type new_cap) { /*TODO*/ }
 
-size_type capacity() const noexcept{
+  size_type capacity() const noexcept {
     return static_cast<size_type>(p_end_of_storage_ - p_begin_);
-}
+  }
 
-void shrink_to_fit(){
-    /*TODO*/
-}
+  void shrink_to_fit() { /*TODO*/ }
 
-/*Modifiers functions*/
-void clear() noexcept{
-    
-}
+  /*Modifiers functions*/
+  void clear() noexcept {}
 
-
-    private:
-    pointer p_begin_;   ///头指针
-    pointer p_end_; ///尾指针
-    pointer p_end_of_storage_;  ///预分配存储尾指针
+private:
+  pointer p_begin_;          /// 头指针
+  pointer p_end_;            /// 尾指针
+  pointer p_end_of_storage_; /// 预分配存储尾指针
 
 }; /// class vector
 
 } // namespace hy
 
-
-
-
-
-#endif  ///HY_VECTOR_HPP_
+#endif /// HY_VECTOR_HPP_
