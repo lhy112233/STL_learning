@@ -64,7 +64,7 @@ public:
     return static_cast<T *>(::operator new(n * sizeof(T)));
   }
 
-  void deallocate(T *p, std::size_t n) { ::operator delete(p, n); }
+  void deallocate(T *p, std::size_t n) { ::operator delete(p); }
 
   size_type max_size() const noexcept {
     return std::numeric_limits<size_type>::max() / sizeof(value_type);
@@ -98,6 +98,10 @@ template <class T1, class T2>
 bool operator!=(const allocator<T1> &lhs, const allocator<T2> &rhs) noexcept {
   return false;
 }
+
+struct allocator_arg_t { explicit allocator_arg_t() = default; };
+
+inline constexpr std::allocator_arg_t allocator_arg = std::allocator_arg_t();
 
 } // namespace hy
 
