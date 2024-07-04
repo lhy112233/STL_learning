@@ -3,6 +3,8 @@
 
 #include "Allocator.hpp"
 #include "Allocator_traits.hpp"
+#include "Unique_ptr.hpp"
+#include "Utility.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <initializer_list>
@@ -74,12 +76,12 @@ public:
         p_end_of_storage_{p_begin_ + count * 2} {
     try {
       for (size_type i = 0; i < count; ++i) {
-        alloc_.construct(p_end_, value);
+        new (hy::detail::to_address(p_end_)) T(value);
         ++p_end_;
       }
     } catch (...) {
       while (!empty()) {
-        alloc_.destroy(--p_end_);
+        hy::detail::to_address(--p_end_)->~T();
       }
       alloc_.deallocate(p_begin_, capacity());
       throw;
@@ -91,12 +93,12 @@ public:
         p_end_of_storage_{p_begin_ + count * 2} {
     try {
       for (size_type i = 0; i < count; ++i) {
-        alloc_.construct(p_end_);
+        new (hy::detail::to_address(p_end_)) T();
         ++p_end_;
       }
     } catch (...) {
       while (!empty()) {
-        alloc_.destroy(--p_end_);
+        hy::detail::to_address(--p_end_)->~T();
       }
       alloc_.deallocate(p_begin_, capacity());
       throw;
@@ -109,12 +111,12 @@ public:
         p_end_{p_begin_}, p_end_of_storage_{p_begin_ + (last - first) * 2} {
     try {
       while (first != last) {
-        alloc_.construct(p_end_, *first);
+        new (hy::detail::to_address(p_end_)) T(*first);
         ++first;
       }
     } catch (...) {
       while (!empty()) {
-        alloc_.destroy(--p_end_);
+        hy::detail::to_address(--p_end_)->~T();
       }
       alloc_.deallocate(begin(), capacity());
       throw;
@@ -126,11 +128,37 @@ public:
                    select_on_container_copy_construction(
                        other.get_allocator())},
         p_begin_{alloc_.allocate(other.capacity())}, p_end_{p_begin_},
-        p_end_of_storage_{p_begin_ + other.capacity()} {}
+        p_end_of_storage_{p_begin_ + other.capacity()} {
+    try {
+      for (auto &ele : other) {
+        new (hy::detail::to_address(p_end_)) T(ele);
+        ++p_end_;
+      }
+    } catch (...) {
+      while (!empty()) {
+        hy::detail::to_address(--p_end_)->~T();
+      }
+      alloc_.deallocate(p_begin_, capacity());
+      throw;
+    }
+  }
 
   vector(const vector &other, const Allocator &alloc)
-      : alloc_{alloc}, p_begin_{alloc_.allocate(other.capacity())},
-        p_end_{p_begin_}, p_end_of_storage_{p_begin_ + other.capacity()} {}
+      : alloc_{alloc}, p_begin_{alloc.allocate(other.capacity())},
+        p_end_{p_begin_}, p_end_of_storage_{p_begin_ + other.capacity()} {
+    try {
+      for (auto &ele : other) {
+        new (hy::detail::to_address(p_end_)) T(ele);
+        ++p_end_;
+      }
+    } catch (...) {
+      while (!empty()) {
+        hy::detail::to_address(--p_end_)->~T();
+      }
+      alloc.deallocate(p_begin_, other.capacity());
+      throw;
+    }
+  }
 
   vector(vector &&other) noexcept
       : alloc_{std::move(other.alloc_)}, p_begin_{other.p_begin_},
@@ -155,14 +183,14 @@ public:
         p_end_ = p_begin_;
         p_end_of_storage_ = p_begin_ + other.capacity();
         for (auto &ele : other) {
-          alloc_.construct(p_end_, std::move(ele));
+          new (hy::detail::to_address(p_end_)) T(std::move(ele));
           ++p_end_;
         }
       } catch (...) {
         auto itor_rhs = other.begin();
         for (size_type i = 0; p_begin_ + i != p_end_; ++i) {
-          other.alloc_.construct(itor_rhs, std::move(*(p_begin_ + i)));
-          alloc_.destroy((p_begin_ + i));
+          new (hy::detail::to_address(itor_rhs)) T(std::move(*(p_begin_ + i)));
+          hy::detail::to_address(p_begin_ + i)->~T();
           ++itor_rhs;
         }
         alloc_.deallocate(p_begin_, capacity());
@@ -176,12 +204,12 @@ public:
         p_end_{p_begin_}, p_end_of_storage_{p_begin_ + init.size() * 2} {
     try {
       for (auto &ele : init) {
-        alloc_.construct(p_end_, std::move(ele));
+        new (hy::detail::to_address(p_end_)) T(std::move(ele));
         ++p_end_;
       }
     } catch (...) {
       while (!empty()) {
-        alloc_.destroy(--p_end_);
+        hy::detail::to_address(--p_end_)->~T();
       }
       alloc_.deallocate(p_begin_, init.size() * 2);
       throw;
@@ -190,13 +218,69 @@ public:
 
   /*Destructors*/
   ~vector() {
-    while (p_begin_ != p_end_) {
-      alloc_.destroy(--p_end_);
+    while (!empty()) {
+      hy::detail::to_address(--p_end_)->~T();
     }
     alloc_.deallocate(p_begin_, capacity());
   }
 
   /*Assignments*/
+  vector &operator=(const vector &other) {
+    auto temp_begin = alloc_.allocate(other.capacity());
+    auto temp_end = temp_begin;
+    auto temp_end_of_storage = temp_begin + other.capacity();
+
+    try {
+      for (auto &ele : other) {
+        new (hy::detail::to_address(p_end_)) T(ele);
+        ++p_end_;
+      }
+    } catch (...) {
+      while (!empty()) {
+        hy::detail::to_address(--p_end_)->~T();
+      }
+      alloc_.deallocate(capacity());
+      throw;
+    }
+    swap(p_begin_, temp_begin);
+    swap(p_end_, temp_end);
+    swap(p_end_of_storage_, temp_end_of_storage);
+    alloc_.deallocate(temp_begin, capacity());
+    return *this;
+  }
+
+  vector &operator=(vector &&other) noexcept(
+      std::allocator_traits<
+          Allocator>::propagate_on_container_move_assignment::value ||
+      std::allocator_traits<Allocator>::is_always_equal::value) {
+    /*析构原数据*/
+    /*swap两other*/
+  }
+
+  vector &operator=(std::initializer_list<value_type> ilist) {
+    auto temp_begin =
+        alloc_.allocate(capacity() > ilist.size() ? capacity() : ilist.size());
+    auto temp_end = temp_begin;
+    auto temp_end_of_storage =
+        temp_begin + (capacity() > ilist.size() ? capacity() : ilist.size());
+    try {
+      for (auto &ele : ilist) {
+        new (hy::detail::to_address(p_end_)) T(std::move(ele));
+        ++p_end_;
+      }
+    } catch (...) {
+      while (!empty()) {
+        hy::detail::to_address(--p_end_)->~T();
+      }
+      alloc_.deallocate(capacity());
+      throw;
+    }
+    swap(p_begin_, temp_begin);
+    swap(p_end_, temp_end);
+    swap(p_end_of_storage_, temp_end_of_storage);
+    alloc_.deallocate(temp_begin, capacity());
+    return *this;
+  }
 
   /*Element access functions*/
   allocator_type get_allocator() const noexcept { return alloc_; }
@@ -298,7 +382,7 @@ public:
   /*Modifiers functions*/
   void clear() noexcept {
     while (p_begin_ != p_end_) {
-      alloc_.destroy(p_end_--);
+      hy::detail::to_address(p_end_--)->~T();
     }
   }
 
@@ -306,6 +390,27 @@ public:
   // iterator emplace(const_iterator pos, Args &&...args) {
   //   if ()
   // }
+
+  void resize( size_type count ){
+
+  }
+
+  void resize( size_type count, const value_type& value ){
+    
+  }
+
+  void swap(vector &other) noexcept(
+      std::allocator_traits<Allocator>::propagate_on_container_swap::value ||
+      std::allocator_traits<Allocator>::is_always_equal::value) {
+    /// 此constexpr只有C++17及以上才有，否则去掉/*TODO */
+    if constexpr (hy::allocator_traits<
+                      allocator_type>::propagate_on_container_swap::value) {
+      swap(alloc_, other.alloc_);
+    }
+    swap(p_begin_, other.p_begin_);
+    swap(p_end_, other.p_end_);
+    swap(p_end_of_storage_, other.p_end_of_storage_);
+  }
 
 private:
   /*details*/
