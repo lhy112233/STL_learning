@@ -1,10 +1,11 @@
 #ifndef HY_STACK_HPP_
 #define HY_STACK_HPP_
+#include "Uses_allocator"
 #include <algorithm>
 #include <deque>
 #include <type_traits>
 #include <utility>
-#include "Uses_allocator"
+
 
 namespace hy {
 template <typename T, typename Container = std::deque<T>> class stack {
@@ -126,9 +127,11 @@ void swap(hy::stack<T, Container> &lhs,
   return lhs.swap(rhs);
 }
 
-template< class T, class Container, class Alloc >
+template <class T, class Container, class Alloc>
 struct uses_allocator<hy::stack<T, Container>, Alloc>
     : std::uses_allocator<Container, Alloc>::type {};
+
+/*TODO:推导指引*/
 
 } // namespace hy
 
