@@ -136,8 +136,3 @@ struct uses_allocator<hy::stack<T, Container>, Alloc>
 } // namespace hy
 
 #endif /// HY_STACK_HPP_
-
-#include <stack>
-
-std::stack<int> a, b;
-auto i = a == b;
