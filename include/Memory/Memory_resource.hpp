@@ -1,0 +1,8 @@
+#ifndef HY_MEMORY_RESOURCE_HPP_
+#define HY_MEMORY_RESOURCE_HPP_
+
+
+
+
+
+#endif  ///HY_MEMORY_RESOURCE_HPP_
