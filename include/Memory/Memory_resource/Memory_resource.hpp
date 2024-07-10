@@ -4,8 +4,7 @@
 #include <cstddef>
 #include <memory>
 #include <new>
-#include <utility>
-#include <vcruntime_new.h>
+
 namespace hy {
 namespace pmr {
 
@@ -125,15 +124,16 @@ class unsynchronized_pool_resource : public hy::pmr::memory_resource { /*TODO*/
 
 /*Detail*/
 namespace detail {
-struct IntrusiveStack {
+struct Chunk {
 
 private:
+  Chunk* tail_;
 };
 }; // namespace detail
 
 class monotonic_buffer_resource : public hy::pmr::memory_resource {
   inline static constexpr std::size_t kGrowthFactor = 2;
-  inline static constexpr std::size_t kInitSize = 64;
+  inline static constexpr std::size_t kInitBufferSize = 64 * sizeof(void *);
 
 public:
   /*Member functions*/
@@ -146,29 +146,29 @@ public:
 
   explicit monotonic_buffer_resource(std::size_t initial_size)
       : upstream_rsrc_{hy::pmr::get_default_resource()},
-        next_buffer_size_{initial_size > kInitSize ? initial_size : kInitSize} {
-  }
+        next_buffer_size_{initial_size > kInitBufferSize ? initial_size
+                                                         : kInitBufferSize} {}
 
   monotonic_buffer_resource(std::size_t initial_size,
                             hy::pmr::memory_resource *upstream)
       : upstream_rsrc_{upstream},
-        next_buffer_size_{initial_size > kInitSize ? initial_size : kInitSize} {
-  }
+        next_buffer_size_{initial_size > kInitBufferSize ? initial_size
+                                                         : kInitBufferSize} {}
 
   monotonic_buffer_resource(void *buffer, std::size_t buffer_size)
       : upstream_rsrc_{hy::pmr::get_default_resource()},
         current_buffer_{buffer},
-        next_buffer_size_{buffer_size * kGrowthFactor > kInitSize
+        next_buffer_size_{((buffer_size * kGrowthFactor) > kInitBufferSize)
                               ? (buffer_size * kGrowthFactor)
-                              : kInitSize},
+                              : kInitBufferSize},
         space_available_{buffer_size} {}
 
   monotonic_buffer_resource(void *buffer, std::size_t buffer_size,
                             hy::pmr::memory_resource *upstream)
       : upstream_rsrc_{upstream}, current_buffer_(buffer),
-        next_buffer_size_{(buffer_size * kGrowthFactor) > kInitSize
+        next_buffer_size_{(buffer_size * kGrowthFactor) > kInitBufferSize
                               ? (buffer_size * kGrowthFactor)
-                              : kInitSize},
+                              : kInitBufferSize},
         space_available_{buffer_size} {}
 
   monotonic_buffer_resource(const hy::pmr::monotonic_buffer_resource &) =
@@ -203,13 +203,20 @@ protected:
 
 private:
   hy::pmr::memory_resource *upstream_rsrc_;
+  void* const orig_buffer_ = nullptr;
+  std::size_t orig_size_ = 0;
+
   void *current_buffer_ = nullptr;
-  std::size_t next_buffer_size_ = kInitSize;
   std::size_t space_available_ = 0;
-  hy::pmr::detail::IntrusiveStack forward_node_;
+  std::size_t next_buffer_size_ = kInitBufferSize;
+
+  hy::pmr::detail::Chunk* chunk_ = nullptr;
 };
 
 } // namespace pmr
 } // namespace hy
 
 #endif /// HY_MEMORY_RESOURCE_HPP_
+
+#include <memory_resource>
+std::pmr::monotonic_buffer_resource a;
