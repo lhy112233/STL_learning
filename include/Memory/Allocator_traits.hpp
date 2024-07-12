@@ -2,6 +2,7 @@
 #define ALLOCATOR_TRAITS_HPP_
 #include "Pointer_traits.hpp"
 #include <limits>
+#include <memory>
 #include <type_traits>
 #include <utility>
 
@@ -9,144 +10,140 @@ namespace hy {
 namespace detail {
 template <typename Alloc, typename Value_type, typename = void>
 struct allocator_traits_pointer {
-  using pointer = Value_type *;
+  using type = Value_type *;
 }; /// allocator_traits_pointer
 
 template <typename Alloc, typename Value_type>
 struct allocator_traits_pointer<Alloc, Value_type,
                                 std::void_t<typename Alloc::pointer>> {
-  using pointer = typename Alloc::pointer;
+  using type = typename Alloc::pointer;
 }; /// allocator_traits_pointer
 
 template <typename Alloc, typename Value_type, typename Pointer,
           typename = void>
 struct allocator_traits_const_pointer {
-  using const_pointer =
+  using type =
       typename hy::pointer_traits<Pointer>::template rebind<const Value_type>;
 }; /// allocator_traits_const_pointer
 
 template <typename Alloc, typename Value_type, typename Pointer>
 struct allocator_traits_const_pointer<
     Alloc, Value_type, Pointer, std::void_t<typename Alloc::const_pointer>> {
-  using const_pointer = typename Alloc::const_pointer;
+  using type = typename Alloc::const_pointer;
 }; /// allocator_traits_const_pointer
 
 template <typename Alloc, typename Pointer, typename = void>
 struct allocator_traits_void_pointer {
-  using void_pointer =
-      typename hy::pointer_traits<Pointer>::template rebind<void>;
+  using type = typename hy::pointer_traits<Pointer>::template rebind<void>;
 }; /// allocator_traits_void_pointer
 
 template <typename Alloc, typename Pointer>
 struct allocator_traits_void_pointer<
     Alloc, Pointer, std::void_t<typename Alloc::void_pointer>> {
-  using void_pointer = typename Alloc::void_pointer;
+  using type = typename Alloc::void_pointer;
 }; /// allocator_traits_void_pointer
 
 template <typename Alloc, typename Pointer, typename = void>
 struct allocator_traits_const_void_pointer {
-  using const_void_pointer =
+  using type =
       typename hy::pointer_traits<Pointer>::template rebind<const void>;
 }; /// allocator_traits_const_void_pointer
 
 template <typename Alloc, typename Pointer>
 struct allocator_traits_const_void_pointer<
     Alloc, Pointer, std::void_t<typename Alloc::const_void_pointer>> {
-  using const_void_pointer = typename Alloc::const_void_pointer;
+  using type = typename Alloc::const_void_pointer;
 }; /// allocator_traits_const_void_pointer
 
 template <typename Alloc, typename Pointer, typename = void>
 struct allocator_traits_difference_type {
-  using difference_type =
-      typename hy::pointer_traits<Pointer>::difference_type;
+  using type = typename hy::pointer_traits<Pointer>::difference_type;
 }; /// allocator_traits_difference_type
 
 template <typename Alloc, typename Pointer>
 struct allocator_traits_difference_type<
     Alloc, Pointer, std::void_t<typename Alloc::difference_type>> {
-  using difference_type = typename Alloc::difference_type;
+  using type = typename Alloc::difference_type;
 }; /// allocator_traits_difference_type
 
 template <typename Alloc, typename Difference_type, typename = void>
 struct allocator_traits_size_type {
-  using size_type = typename std::make_unsigned<Difference_type>::type;
+  using type = typename std::make_unsigned<Difference_type>::type;
 }; /// allocator_traits_size_type
 
 template <typename Alloc, typename Difference_type>
 struct allocator_traits_size_type<Alloc, Difference_type,
                                   std::void_t<typename Alloc::size_type>> {
-  using size_type = typename Alloc::size_type;
+  using type = typename Alloc::size_type;
 }; /// allocator_traits_size_type
 
 template <typename Alloc, typename = void>
 struct allocator_traits_propagate_on_container_copy_assignment {
-  using propagate_on_container_copy_assignment = typename std::false_type;
+  using type = typename std::false_type;
 }; /// allocator_traits_propagate_on_container_copy_assignment
 
 template <typename Alloc>
 struct allocator_traits_propagate_on_container_copy_assignment<
     Alloc,
     std::void_t<typename Alloc::propagate_on_container_copy_assignment>> {
-  using propagate_on_container_copy_assignment =
-      typename Alloc::propagate_on_container_copy_assignment;
+  using type = typename Alloc::propagate_on_container_copy_assignment;
 }; /// allocator_traits_propagate_on_container_copy_assignment
 
 template <typename Alloc, typename = void>
 struct allocator_traits_propagate_on_container_move_assignment {
-  using propagate_on_container_move_assignment = typename std::false_type;
+  using type = typename std::false_type;
 }; /// allocator_traits_propagate_on_container_move_assignment
 
 template <typename Alloc>
 struct allocator_traits_propagate_on_container_move_assignment<
     Alloc,
     std::void_t<typename Alloc::propagate_on_container_move_assignment>> {
-  using propagate_on_container_move_assignment =
-      typename Alloc::propagate_on_container_move_assignment;
+  using type = typename Alloc::propagate_on_container_move_assignment;
 }; /// allocator_traits_propagate_on_container_move_assignment
 
 template <typename Alloc, typename = void>
 struct allocator_traits_propagate_on_container_swap {
-  using propagate_on_container_swap = typename std::false_type;
+  using type = typename std::false_type;
 }; /// allocator_traits_propagate_on_container_swap
 
 template <typename Alloc>
 struct allocator_traits_propagate_on_container_swap<
     Alloc, std::void_t<typename Alloc::propagate_on_container_swap>> {
-  using propagate_on_container_swap =
-      typename Alloc::propagate_on_container_swap;
+  using type = typename Alloc::propagate_on_container_swap;
 }; /// allocator_traits_propagate_on_container_swaps
 
 template <typename Alloc, typename = void>
 struct allocator_traits_is_always_equal {
-  using is_always_equal = typename std::is_empty<Alloc>::type;
+  using type = typename std::is_empty<Alloc>::type;
 }; /// allocator_traits_is_always_equal
 
 template <typename Alloc>
 struct allocator_traits_is_always_equal<Alloc,
                                         typename Alloc::is_always_equal> {
-  using is_always_equal = typename Alloc::is_always_equal;
+  using type = typename Alloc::is_always_equal;
 }; /// allocator_traits_is_always_equal
 
 template <typename Alloc, typename T, typename = void>
 struct allocator_traits_rebind_alloc {
-  using rebind_alloc = Alloc;
+  static_assert(false, "rebind_alloc is undefine");
 }; /// allocator_traits_rebind_alloc
 
 template <typename Alloc, typename T>
 struct allocator_traits_rebind_alloc<
     Alloc, T, std::void_t<typename Alloc::template rebind<T>::other>> {
-  using rebind_alloc = typename Alloc::template rebind<T>::other;
+  using type = typename Alloc::template rebind<T>::other;
 }; /// allocator_traits_rebind_alloc
+
+template <template <typename, typename> typename Alloc, typename T, typename U,
+          typename Args>
+struct allocator_traits_rebind_alloc<Alloc<U, Args>, T, void> {
+  using type = Alloc<T, Args>;
+};
 
 template <typename Alloc>
 inline auto
 allocator_traits_select_on_container_copy_construction(const Alloc &a, int)
-    -> decltype(a.select_on_container_copy_construction()) {
-  static_assert(
-      std::is_same_v<Alloc,
-                     decltype(a.select_on_container_copy_construction())>,
-      "Alloc ane decltype(a.select_on_container_copy_construction()) is no "
-      "same!");
+    -> decltype(static_cast<Alloc>(a.select_on_container_copy_construction())) {
   return a.select_on_container_copy_construction();
 } /// allocator_traits_select_on_container_copy_construction
 
@@ -164,36 +161,35 @@ template <class Alloc> class allocator_traits {
   using allocator_type = Alloc;
   using value_type = typename Alloc::value_type;
   using pointer =
-      typename hy::detail::allocator_traits_pointer<Alloc, value_type>::pointer;
-  using const_pointer = typename hy::detail::allocator_traits_const_pointer<
-      Alloc, value_type, pointer>::const_pointer;
+      typename hy::detail::allocator_traits_pointer<Alloc, value_type>::type;
+  using const_pointer =
+      typename hy::detail::allocator_traits_const_pointer<Alloc, value_type,
+                                                          pointer>::type;
   using void_pointer =
-      typename hy::detail::allocator_traits_void_pointer<Alloc,
-                                                         pointer>::void_pointer;
+      typename hy::detail::allocator_traits_void_pointer<Alloc, pointer>::type;
   using const_void_pointer =
-      typename hy::detail::allocator_traits_const_void_pointer<
-          Alloc, pointer>::const_void_pointer;
-  using difference_type = typename hy::detail::allocator_traits_difference_type<
-      Alloc, pointer>::difference_type;
-  using size_type = typename hy::detail::allocator_traits_size_type<
-      Alloc, difference_type>::size_type;
+      typename hy::detail::allocator_traits_const_void_pointer<Alloc,
+                                                               pointer>::type;
+  using difference_type =
+      typename hy::detail::allocator_traits_difference_type<Alloc,
+                                                            pointer>::type;
+  using size_type =
+      typename hy::detail::allocator_traits_size_type<Alloc,
+                                                      difference_type>::type;
   using propagate_on_container_copy_assignment = typename hy::detail::
-      allocator_traits_propagate_on_container_copy_assignment<
-          Alloc>::propagate_on_container_copy_assignment;
+      allocator_traits_propagate_on_container_copy_assignment<Alloc>::type;
   using propagate_on_container_move_assignment = typename hy::detail::
-      allocator_traits_propagate_on_container_move_assignment<
-          Alloc>::propagate_on_container_move_assignment;
+      allocator_traits_propagate_on_container_move_assignment<Alloc>::type;
   using propagate_on_container_swap =
       typename hy::detail::allocator_traits_propagate_on_container_swap<
-          Alloc>::propagate_on_container_swap;
-  using is_always_equal = typename hy::detail::allocator_traits_is_always_equal<
-      Alloc>::is_always_equal;
+          Alloc>::type;
+  using is_always_equal =
+      typename hy::detail::allocator_traits_is_always_equal<Alloc>::type;
 
   /*Member alias templates*/
   template <typename T>
   using rebind_alloc =
-      typename hy::detail::allocator_traits_rebind_alloc<Alloc,
-                                                         T>::rebind_alloc;
+      typename hy::detail::allocator_traits_rebind_alloc<Alloc, T>::type;
 
   template <typename T>
   using rebind_traits = typename hy::allocator_traits<rebind_alloc<T>>;
@@ -251,10 +247,8 @@ template <class Alloc> class allocator_traits {
 
   /*max_size detail*/
   template <typename Up>
-  inline static auto detail_max_size(const Alloc &a,
-                                     int) noexcept -> decltype(a.max_size()) {
-    static_assert(std::is_same_v<size_type, decltype((a.max_size()))>,
-                  "size_type and decltype((a.max_size())) is no same!");
+  inline static auto detail_max_size(const Alloc &a, int) noexcept
+      -> decltype(static_cast<size_type>(a.max_size())) {
     return a.max_size();
   } /// aauto detail_max_size(const Alloc &a,int)
 
@@ -272,3 +266,6 @@ template <class Alloc> class allocator_traits {
 } // namespace hy
 
 #endif // ALLOCATOR_TRAITS_HPP_
+
+// rebind_alloc存在问题
+// 调用operator new还是operator new[]?

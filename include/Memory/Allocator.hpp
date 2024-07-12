@@ -37,11 +37,14 @@ public:
     using other = allocator<U>;
   };
 
-  allocator() noexcept = default;
+  /*Constructors*/
+  allocator() noexcept = default;  
   allocator(const allocator &) noexcept = default;
   template <typename U> allocator(const allocator<U> &) noexcept {};
 
+  /*Destructor*/
   ~allocator() = default;
+
 
   [[deprecated]] pointer address(reference x) const noexcept {
     return std::addressof(x);
@@ -76,9 +79,11 @@ public:
   }
 
   template <class U> [[deprecated]] void destroy(U *p) { p->~U(); }
-};
+}; /// class allocator
 
 template <> struct [[deprecated]] allocator<void> {
+public:
+  /*Member types*/
   using value_type = void;
   using pointer [[deprecated]] = void *;
   using const_pointer [[deprecated]] = const void *;

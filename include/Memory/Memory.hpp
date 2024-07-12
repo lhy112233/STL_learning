@@ -12,7 +12,7 @@
 #include "Raw_storage_iterator.hpp"
 #include "Return_temporary_buffer.hpp"
 #include "Scoped_allocator.hpp"
-#include "Uninitialized_copy.hpp"
+#include "Uninitialized_inl.hpp"
 #include "Unique_ptr.hpp"
 #include "Uses_allocator.hpp"
 

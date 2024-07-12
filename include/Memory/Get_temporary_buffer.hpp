@@ -9,7 +9,7 @@ get_temporary_buffer(std::ptrdiff_t count) noexcept {
   if (count <= 0) {
     return {nullptr, 0};
   } else {
-    return {static_cast<T *>(::operator new(count * sizeof(T))), count};
+    return {static_cast<T *>(::operator new(count * sizeof(T), alignof(T))), count};
   }
 }
 } // namespace hy
