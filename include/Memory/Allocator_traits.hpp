@@ -232,7 +232,7 @@ template <class Alloc> class allocator_traits {
   /*destroy detail*/
   template <typename T>
   inline static auto detail_destroy(Alloc &a, T *p, int)
-      -> decltype(static_cast<void>(a.destroy(p)), void()) {
+      -> decltype(static_cast<void>(a.destroy(p))) {
     a.destroy(p);
   } /// auto detail_destroy(Alloc& a, T* p, ...)
 

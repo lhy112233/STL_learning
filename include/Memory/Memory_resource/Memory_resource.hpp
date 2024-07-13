@@ -116,20 +116,43 @@ struct pool_options {
   std::size_t largest_required_pool_block;
 };
 
-class synchronized_pool_resource : public hy::pmr::memory_resource { /*TODO*/
+class synchronized_pool_resource : public hy::pmr::memory_resource {
+public:
+  /*Member functions*/
+  /*Constructors*/
+
+  /*Destructor*/
+
+  /*Assignment*/
+  synchronized_pool_resource &operator=(synchronized_pool_resource &) = delete;
+
+protected:
+  virtual void *
+  do_allocate(std::size_t bytes,
+              std::size_t alignment = alignof(std::max_align_t)) override {}
+
+  virtual void do_deallocate(void *p, std::size_t bytes,
+                             std::size_t alignment) override {}
+
+  virtual bool
+  do_is_equal(const hy::pmr::memory_resource &other) const noexcept override {
+    return this == &other;
+  }
+
+private:
+  pool_options pool_options_;
 };
 
 class unsynchronized_pool_resource : public hy::pmr::memory_resource { /*TODO*/
 };
 
-/*Detail*/
 namespace detail {
 struct Chunk {
-
-private:
-  Chunk* tail_;
+  Chunk *pre_df_{nullptr};
+  std::size_t size_{0};
+  std::size_t align_{alignof(std::max_align_t)};
 };
-}; // namespace detail
+} // namespace detail
 
 class monotonic_buffer_resource : public hy::pmr::memory_resource {
   inline static constexpr std::size_t kGrowthFactor = 2;
@@ -138,15 +161,13 @@ class monotonic_buffer_resource : public hy::pmr::memory_resource {
 public:
   /*Member functions*/
   /*Constructors*/
-  monotonic_buffer_resource()
-      : upstream_rsrc_{hy::pmr::get_default_resource()} {}
+  monotonic_buffer_resource() = default;
 
   explicit monotonic_buffer_resource(hy::pmr::memory_resource *upstream)
       : upstream_rsrc_{upstream} {}
 
   explicit monotonic_buffer_resource(std::size_t initial_size)
-      : upstream_rsrc_{hy::pmr::get_default_resource()},
-        next_buffer_size_{initial_size > kInitBufferSize ? initial_size
+      : next_buffer_size_{initial_size > kInitBufferSize ? initial_size
                                                          : kInitBufferSize} {}
 
   monotonic_buffer_resource(std::size_t initial_size,
@@ -155,21 +176,10 @@ public:
         next_buffer_size_{initial_size > kInitBufferSize ? initial_size
                                                          : kInitBufferSize} {}
 
-  monotonic_buffer_resource(void *buffer, std::size_t buffer_size)
-      : upstream_rsrc_{hy::pmr::get_default_resource()},
-        current_buffer_{buffer},
-        next_buffer_size_{((buffer_size * kGrowthFactor) > kInitBufferSize)
-                              ? (buffer_size * kGrowthFactor)
-                              : kInitBufferSize},
-        space_available_{buffer_size} {}
+  monotonic_buffer_resource(void *buffer, std::size_t buffer_size){}
 
   monotonic_buffer_resource(void *buffer, std::size_t buffer_size,
-                            hy::pmr::memory_resource *upstream)
-      : upstream_rsrc_{upstream}, current_buffer_(buffer),
-        next_buffer_size_{(buffer_size * kGrowthFactor) > kInitBufferSize
-                              ? (buffer_size * kGrowthFactor)
-                              : kInitBufferSize},
-        space_available_{buffer_size} {}
+                            hy::pmr::memory_resource *upstream){}
 
   monotonic_buffer_resource(const hy::pmr::monotonic_buffer_resource &) =
       delete;
@@ -182,16 +192,14 @@ public:
   monotonic_buffer_resource &operator=(monotonic_buffer_resource &&) = delete;
 
   /*Public member functions*/
-  void release() { /*TODO*/ }
+  void release() {  }
 
   hy::pmr::memory_resource *upstream_resource() const { return upstream_rsrc_; }
 
   /*Protected member functions*/
 protected:
   virtual void *do_allocate(std::size_t bytes,
-                            std::size_t alignment = alignof(std::max_align_t)) {
-    /*TODO*/
-  }
+                            std::size_t alignment = alignof(std::max_align_t)) {}
 
   virtual void do_deallocate(void *p, std::size_t bytes,
                              std::size_t alignment) { /*nonbehavior*/ }
@@ -202,15 +210,14 @@ protected:
   }
 
 private:
-  hy::pmr::memory_resource *upstream_rsrc_;
-  void* const orig_buffer_ = nullptr;
-  std::size_t orig_size_ = 0;
+  hy::pmr::memory_resource *upstream_rsrc_{hy::pmr::get_default_resource()};
+  void *const orig_buffer_{nullptr};
+  std::size_t orig_size_{0};
 
-  void *current_buffer_ = nullptr;
-  std::size_t space_available_ = 0;
-  std::size_t next_buffer_size_ = kInitBufferSize;
+  void *current_buffer_{nullptr};
+  std::size_t next_buffer_size_{kInitBufferSize};
 
-  hy::pmr::detail::Chunk* chunk_ = nullptr;
+  detail::Chunk chunk_{};
 };
 
 } // namespace pmr

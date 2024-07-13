@@ -1,4 +1,20 @@
-#include "Allocator.hpp"
-template class hy::allocator<int>;
+#include <iostream>
+#include <scoped_allocator>
+#include <type_traits>
+#include <utility>
 
-int main(){}
+namespace detail {
+struct father{
+    int a;
+};
+struct son : father {
+    int a;
+    son(son& rhs) : father(rhs), a(2) {}
+};
+
+} // namespace detail
+
+
+int main(){
+    std::cout << VERSION;
+}
