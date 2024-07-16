@@ -39,6 +39,8 @@ namespace detail {
 } // namespace detail
 
 template <typename T, typename Allocator = hy::allocator<T>> class vector {
+  inline static constexpr std::size_t kGrowthFactor = 2;
+
 public:
   /*Member types*/
   using value_type = T;
@@ -226,6 +228,12 @@ public:
 
   /*Assignments*/
   vector &operator=(const vector &other) {
+    if constexpr(std::allocator_traits<allocator_type>::propagate_on_container_copy_assignment::value){
+      auto tmp_alloc = std::allocator_traits<Allocator>::select_on_container_copy_construction(other.alloc_);
+      if(tmp_alloc != alloc_){
+        std:de
+      }
+    }
     auto temp_begin = alloc_.allocate(other.capacity());
     auto temp_end = temp_begin;
     auto temp_end_of_storage = temp_begin + other.capacity();
@@ -253,8 +261,11 @@ public:
       std::allocator_traits<
           Allocator>::propagate_on_container_move_assignment::value ||
       std::allocator_traits<Allocator>::is_always_equal::value) {
-    /*析构原数据*/
-    /*swap两other*/
+        if constexpr(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value){
+          std::destroy(begin(),end());
+          std::
+          alloc_ = std::move(other.alloc_);
+        }
   }
 
   vector &operator=(std::initializer_list<value_type> ilist) {
@@ -388,16 +399,31 @@ public:
 
   // template <class... Args>
   // iterator emplace(const_iterator pos, Args &&...args) {
-  //   if ()
+  // if ()
   // }
 
-  void resize( size_type count ){
-
+  void pop_back() {
+    std::allocator_traits<Allocator>::destroy(alloc_,
+                                              hy::detail::to_address(--end()));
   }
 
-  void resize( size_type count, const value_type& value ){
-    
+  void resize(size_type count) {
+    if (count == size()) {
+      return;
+    } else if (count < size()) {
+      std::destroy(begin() + count - 1, end());
+      end() = begin() + count - 1;
+      return;
+    } else {
+      try {
+      statements
+      } catch (...) {
+      
+      }
+    }
   }
+
+  void resize(size_type count, const value_type &value) {}
 
   void swap(vector &other) noexcept(
       std::allocator_traits<Allocator>::propagate_on_container_swap::value ||
@@ -434,33 +460,55 @@ private:
 template <class T, class Alloc>
 bool operator==(const hy::vector<T, Alloc> &lhs,
                 const hy::vector<T, Alloc> &rhs) {
-  auto itor_lhs = lhs.begin();
-  auto itor_rhs = rhs.begin();
+  return std::equal(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
 }
 
 template <class T, class Alloc>
 bool operator!=(const hy::vector<T, Alloc> &lhs,
-                const hy::vector<T, Alloc> &rhs) {}
+                const hy::vector<T, Alloc> &rhs) {
+  return !(lhs == rhs);
+}
 
 template <class T, class Alloc>
 bool operator<(const hy::vector<T, Alloc> &lhs,
-               const hy::vector<T, Alloc> &rhs) {}
+               const hy::vector<T, Alloc> &rhs) {
+  return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(),
+                                      rhs.end());
+}
 
 template <class T, class Alloc>
 bool operator<=(const hy::vector<T, Alloc> &lhs,
-                const hy::vector<T, Alloc> &rhs) {}
+                const hy::vector<T, Alloc> &rhs) {
+  return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(),
+                                      rhs.end(),
+                                      [](const auto &lhs, const auto &rhs) {
+                                        return (lhs < rhs || lhs == rhs);
+                                      });
+}
 
 template <class T, class Alloc>
 bool operator>(const hy::vector<T, Alloc> &lhs,
-               const hy::vector<T, Alloc> &rhs) {}
+               const hy::vector<T, Alloc> &rhs) {
+  return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(),
+                                      rhs.end(),
+                                      [](const auto &lhs, const auto &rhs) {
+                                        return !(lhs < rhs || lhs == rhs);
+                                      });
+}
 
 template <class T, class Alloc>
 bool operator>=(const hy::vector<T, Alloc> &lhs,
-                const hy::vector<T, Alloc> &rhs) {}
+                const hy::vector<T, Alloc> &rhs) {
+  return std::lexicographical_compare(
+      lhs.begin(), lhs.end(), rhs.begin(), rhs.end(),
+      [](const auto &lhs, const auto &rhs) { return !(lhs < rhs); });
+}
 
 template <class T, class Alloc>
 void swap(hy::vector<T, Alloc> &lhs,
-          hy::vector<T, Alloc> &rhs) noexcept(noexcept(lhs.swap(rhs))) {}
+          hy::vector<T, Alloc> &rhs) noexcept(noexcept(lhs.swap(rhs))) {
+  lhs.swap(rhs);
+}
 
 namespace pmr {
 template <class T>
