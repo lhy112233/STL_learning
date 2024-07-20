@@ -9,6 +9,10 @@ message(STATUS "C++ standard is ${CMAKE_CXX_STANDARD}")
 
 # GoogleTest option
 option(ENABLE_GOOGLETEST "Build and enable GoogleTest" OFF)
+# Qt6 option
+option(ENABLE_QT6 "Find and config Qt6" OFF)
+# Format option
+option(ENABLE_FORMAT "Build and enable format" OFF)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/src)
 add_subdirectory(${CMAKE_SOURCE_DIR}/test/array_test)
@@ -20,13 +24,26 @@ if(${ENABLE_GOOGLETEST})
     include(FetchContent)
     FetchContent_Declare(
         googletest
-        URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG 703bd9caab50b139428cea1aaff9974ebee5742e # release-1.10.0
     )
 
     # For Windows: Prevent overriding the parent project's compiler/linker settings
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
 
+    find_package(GTest REQUIRED)
 else()
     message(STATUS "Disable GoogleTest!")
+endif()
+
+# Qt6
+if(${ENABLE_QT6})
+    message(STATUS "enable find and config Qt6")
+    set(CMAKE_AUTOMOC ON)
+    set(CMAKE_AUTOUIC ON)
+    set(CMAKE_AUTORCC ON)
+    # find_package()
+else()
+message(STATUS "enable find and config Qt6")
 endif()
