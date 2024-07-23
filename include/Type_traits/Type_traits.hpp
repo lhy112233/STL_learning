@@ -136,6 +136,21 @@ namespace hy
     template <typename T>
     using remove_reference_t = typename remove_reference<T>::type;
 
+
+
+
+
+    /*CPP23*/
+    
+template<class T>
+struct remove_cvref
+{
+    using type = hy::remove_cv_t<hy::remove_reference_t<T>>;
+};
+
+template< class T >
+using remove_cvref_t = typename hy::remove_cvref<T>::type;
+
 } // namespace hy
 
 #endif // TYPR_TRAITS_HPP_
