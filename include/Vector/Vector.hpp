@@ -65,65 +65,29 @@ public:
 
   /*Member functions*/
   /*Constructors*/
-  vector() noexcept(noexcept(Allocator()))
-      : alloc_{}, p_begin_{nullptr}, p_end_{nullptr},
-        p_end_of_storage_{nullptr} {}
+  vector() noexcept(noexcept(Allocator())) = default;
 
-  explicit vector(const Allocator &alloc) noexcept
-      : alloc_{alloc}, p_begin_{nullptr}, p_end_{nullptr},
-        p_end_of_storage_{nullptr} {}
+  explicit vector(const Allocator &alloc) noexcept : alloc_{alloc} {}
 
   vector(size_type count, const T &value, const Allocator &alloc = Allocator())
-      : alloc_{alloc}, p_begin_{alloc_.allocate(count * 2)}, p_end_{p_begin_},
-        p_end_of_storage_{p_begin_ + count * 2} {
-    try {
-      for (size_type i = 0; i < count; ++i) {
-        new (hy::detail::to_address(p_end_)) T(value);
-        ++p_end_;
-      }
-    } catch (...) {
-      while (!empty()) {
-        hy::detail::to_address(--p_end_)->~T();
-      }
-      alloc_.deallocate(p_begin_, capacity());
-      throw;
-    }
+      : alloc_{alloc}, p_begin_{alloc_.allocate(count * 2)}, p_end_{p_begin_ +
+                                                                    count},
+        p_end_of_storage_(p_begin_ + count * 2) {
+    std::uninitialized_fill_n(begin(), count, value);
   }
 
   explicit vector(size_type count, const Allocator &alloc = Allocator{})
       : alloc_{alloc}, p_begin_{alloc_.allocate(count * 2)}, p_end_{p_begin_},
         p_end_of_storage_{p_begin_ + count * 2} {
-    try {
-      for (size_type i = 0; i < count; ++i) {
-        new (hy::detail::to_address(p_end_)) T();
-        ++p_end_;
-      }
-    } catch (...) {
-      while (!empty()) {
-        hy::detail::to_address(--p_end_)->~T();
-      }
-      alloc_.deallocate(p_begin_, capacity());
-      throw;
-    }
+          std::uninitialized_value_construct_n(begin(), count);
   }
 
-  template <class InputIt>
+  template <class InputIt, typename = std::enable_if_t<std::i>>
   vector(InputIt first, InputIt last, const Allocator &alloc = Allocator())
       : alloc_{alloc}, p_begin_{(alloc_.allocate(last - first) * 2)},
         p_end_{p_begin_}, p_end_of_storage_{p_begin_ + (last - first) * 2} {
-    try {
-      while (first != last) {
-        new (hy::detail::to_address(p_end_)) T(*first);
-        ++first;
-      }
-    } catch (...) {
-      while (!empty()) {
-        hy::detail::to_address(--p_end_)->~T();
-      }
-      alloc_.deallocate(begin(), capacity());
-      throw;
-    }
-  }
+          std::uninitialized_copy(first, last, begin());
+        }
 
   vector(const vector &other)
       : alloc_{hy::allocator_traits<allocator_type>::
@@ -131,18 +95,7 @@ public:
                        other.get_allocator())},
         p_begin_{alloc_.allocate(other.capacity())}, p_end_{p_begin_},
         p_end_of_storage_{p_begin_ + other.capacity()} {
-    try {
-      for (auto &ele : other) {
-        new (hy::detail::to_address(p_end_)) T(ele);
-        ++p_end_;
-      }
-    } catch (...) {
-      while (!empty()) {
-        hy::detail::to_address(--p_end_)->~T();
-      }
-      alloc_.deallocate(p_begin_, capacity());
-      throw;
-    }
+          std::uninitialized_copy(other.begin(), other.end(), begin());
   }
 
   vector(const vector &other, const Allocator &alloc)
@@ -204,34 +157,24 @@ public:
   vector(std::initializer_list<T> init, const Allocator &alloc = Allocator())
       : alloc_{alloc}, p_begin_{alloc_.allocate(init.size() * 2)},
         p_end_{p_begin_}, p_end_of_storage_{p_begin_ + init.size() * 2} {
-    try {
-      for (auto &ele : init) {
-        new (hy::detail::to_address(p_end_)) T(std::move(ele));
-        ++p_end_;
-      }
-    } catch (...) {
-      while (!empty()) {
-        hy::detail::to_address(--p_end_)->~T();
-      }
-      alloc_.deallocate(p_begin_, init.size() * 2);
-      throw;
-    }
+    std::uninitialized_move(init.begin(),init.end(),p_begin_);
   }
 
   /*Destructors*/
   ~vector() {
-    while (!empty()) {
-      hy::detail::to_address(--p_end_)->~T();
-    }
+    std::destroy_n(p_begin_, size());
     alloc_.deallocate(p_begin_, capacity());
   }
 
   /*Assignments*/
   vector &operator=(const vector &other) {
-    if constexpr(std::allocator_traits<allocator_type>::propagate_on_container_copy_assignment::value){
-      auto tmp_alloc = std::allocator_traits<Allocator>::select_on_container_copy_construction(other.alloc_);
-      if(tmp_alloc != alloc_){
-        std:de
+    if constexpr (std::allocator_traits<allocator_type>::
+                      propagate_on_container_copy_assignment::value) {
+      auto tmp_alloc = std::allocator_traits<
+          Allocator>::select_on_container_copy_construction(other.alloc_);
+      if (tmp_alloc != alloc_) {
+      std:
+        de
       }
     }
     auto temp_begin = alloc_.allocate(other.capacity());
@@ -261,11 +204,11 @@ public:
       std::allocator_traits<
           Allocator>::propagate_on_container_move_assignment::value ||
       std::allocator_traits<Allocator>::is_always_equal::value) {
-        if constexpr(std::allocator_traits<allocator_type>::propagate_on_container_move_assignment::value){
-          std::destroy(begin(),end());
-          std::
-          alloc_ = std::move(other.alloc_);
-        }
+    if constexpr (std::allocator_traits<allocator_type>::
+                      propagate_on_container_move_assignment::value) {
+      std::destroy(begin(), end());
+      std::alloc_ = std::move(other.alloc_);
+    }
   }
 
   vector &operator=(std::initializer_list<value_type> ilist) {
@@ -388,7 +331,8 @@ public:
 
   // void shrink_to_fit() {} ///No implementation
 
-  void shrink_to_fit() { /*TODO*/ }
+  void shrink_to_fit() { /*TODO*/
+  }
 
   /*Modifiers functions*/
   void clear() noexcept {
@@ -416,9 +360,8 @@ public:
       return;
     } else {
       try {
-      statements
+        statements
       } catch (...) {
-      
       }
     }
   }
@@ -449,10 +392,10 @@ private:
   }
 
 private:
-  Allocator alloc_;
-  pointer p_begin_;          /// 头指针
-  pointer p_end_;            /// 尾指针
-  pointer p_end_of_storage_; /// 预分配存储尾指针
+  Allocator alloc_ = Allocator{};
+  pointer p_begin_ = nullptr;          /// 头指针
+  pointer p_end_ = nullptr;            /// 尾指针
+  pointer p_end_of_storage_ = nullptr; /// 预分配存储尾指针
 
 }; /// class vector
 
