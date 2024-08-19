@@ -1,25 +1,70 @@
 #ifndef TUPLE_HPP_
 #define TUPLE_HPP_
 #include <cstddef>
-#include <type_traits>n
+#include <tuple>
+#include <type_traits>
+std::tuple<int> a;
 
 namespace hy {
-template <typename T, typename... Types> class tuple : public tuple<Types...> {
-public:
-  ~tuple<Types...>() = default;
+/*Helps*/
+namespace details {
+template <typename T, typename... Types>
+inline constexpr auto decide_explicit_constructor(T t) noexcept
+    -> decltype((void)(t = {}), bool{}) {
+  return decide_explicit_constructor<Types...>();
+}
 
-private:
-  T data_;
+template <typename T, typename... Types>
+inline constexpr auto decide_explicit_constructor(T t, ...) noexcept
+    -> decltype(bool{}) {
+  return false;
+}
+
+template <typename... Types, typename = std::enable_if_t<sizeof...(Types) == 0>>
+inline constexpr auto decide_explicit_constructor(Types... args) noexcept
+    -> bool {
+  return true;
+}
+
+} // namespace details
+
+template <typename... Typse> class tuple {
+public:
+  tuple() = default;
+
+  template <class UTypes,
+            typename = std::enable_if_t<std::is_constructible_v<void, UTypes>>>
+  tuple(const tuple<UTypes> &other) {}
+
+  template <class UType,
+            typename = std::enable_if_t<std::is_constructible_v<
+                void, std::remove_reference_t<std::remove_cv_t<UType>> &&>>>
+  tuple(tuple<UType> &&other) {}
+
+  tuple(const tuple &other) = default;
+
+  tuple(tuple &&other) = default;
+
+  tuple &operator=(const tuple &other) = default;
+
+  tuple &operator=(tuple &&other) noexcept = default;
+
+  template <class... UTypes, typename = std::enable_if_t<
+                                 std::is_assignable_v<void, const UTypes &...>>>
+  tuple &operator=(const tuple<UTypes...> &other) {}
+
+  template <class... UTypes,
+            typename = std::enable_if_t<std::is_assignable_v<void, UTypes...>>>
+  tuple &operator=(tuple<UTypes...> &&other) {}
+
+  void swap(tuple &other) {}
 };
 
-template <typename T> class tuple<T> {
-public:
-  ~tuple<T>() = default;
+template <typename T, typename... Types> class tuple<T, Types...> { public: };
 
-private:
-  T data_;
-};
+/*Non-member-function*/
 
+/*Helpers*/
 template <typename...> struct tuple_size;
 
 template <typename... Types>
@@ -46,6 +91,19 @@ template <typename...> struct uses_allocator;
 
 template <typename... Types, typename Alloc>
 struct uses_allocator<hy::tuple<Types...>, Alloc> : std::true_type {};
+
+struct ignore_type {
+  template <typename... Types> constexpr ignore_type(Types...) noexcept {}
+
+  template <typename T, typename = std::enable_if_t<!std::is_void_v<T>>>
+  constexpr const ignore_type &operator=(const T &) {
+    return *this;
+  }
+
+  ~ignore_type() = default;
+};
+
+inline constexpr ignore_type ignore;
 
 } // namespace hy
 
