@@ -82,6 +82,8 @@ public:
       value = std::move(ring[current_read]);
     } else {
       value = ring[current_read];
+    }
+    if constexpr (std::negation_v<std::is_trivially_destructible<value_type>>) {
       allocator_traits::destroy(*this, ring + current_read);
     }
     ++current_read;
@@ -147,7 +149,7 @@ public:
            write_index_.load(std::memory_order_acquire);
   }
 
-  constexpr std::size_t capacity() const noexcept { return REAL_CAPACITY; }
+  constexpr std::size_t capacity() const noexcept { return N; }
 
 private:
   using AtomicIndex = std::atomic_size_t;
