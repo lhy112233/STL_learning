@@ -10,4 +10,5 @@ target_include_directories(hy_STL INTERFACE
         ${CMAKE_SOURCE_DIR}/include/Type_traits
         ${CMAKE_SOURCE_DIR}/include/Utility
         ${CMAKE_SOURCE_DIR}/include/Functional
-        ${CMAKE_SOURCE_DIR}/include/Tuple)
+        ${CMAKE_SOURCE_DIR}/include/Tuple
+        ${CMAKE_SOURCE_DIR}/include/Queue)
