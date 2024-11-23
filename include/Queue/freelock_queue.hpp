@@ -17,7 +17,9 @@ class FreelockQueue final : private Alloc {
   static_assert(std::negation_v<std::is_reference<T>>,
                 "value_type is unable to same with value_type&&");
 
- public:
+  inline constexpr static auto REAL_CAPACITY = N + 1;
+
+public:
   using value_type = T;
   using size_type = std::size_t;
   using allocator_type = Alloc;
@@ -29,16 +31,20 @@ class FreelockQueue final : private Alloc {
   FreelockQueue &operator=(FreelockQueue &&) = delete;
 
   constexpr FreelockQueue()
-      : ring{allocator_traits::allocate(N)}, read_index_{0}, write_index_{0} {}
+      : ring{allocator_traits::allocate(REAL_CAPACITY)}, read_index_{0},
+        write_index_{0} {}
 
   constexpr ~FreelockQueue() noexcept(
       std::is_nothrow_destructible_v<value_type &>) {
     if constexpr (std::is_trivially_destructible_v<value_type &>) {
       auto read = read_index_.load(std::memory_order_acquire);
-      while (read != write_index_.load(std::memory_order_acquire)) {
-        allocator_traits::destroy(std::to_address(std::addressof(ring[read])));
-        read_index_.store((read_index_.load(std::memory_order_acquire) + 1) % N,
-                          std::memory_order_release);
+      auto write = write_index_.load(std::memory_order_acquire);
+      while (read != write) {
+        allocator_traits::destroy(*this, ring + read);
+        ++read;
+        if (read == REAL_CAPACITY) {
+          read = 0;
+        }
       }
     }
     allocator_traits::deallocate(ring, capacity());
@@ -54,7 +60,7 @@ class FreelockQueue final : private Alloc {
 
     // 延迟修改，万一构造抛异常了就不需要执行此操作
     auto next_write = current_write + 1;
-    if (next_write == N) {
+    if (next_write == REAL_CAPACITY) {
       next_write = 0;
     }
     while (next_write == read_index_.load(std::memory_order_acquire)) {
@@ -81,7 +87,7 @@ class FreelockQueue final : private Alloc {
           *this, std::to_address(std::addressof(ring[current_read])));
     }
     ++current_read;
-    if (current_read == N) {
+    if (current_read == REAL_CAPACITY) {
       current_read = 0;
     }
     read_index_.store(current_read, std::memory_order_release);
@@ -92,7 +98,7 @@ class FreelockQueue final : private Alloc {
       noexcept(value_type{std::forward<decltype(args)>(args)...})) {
     auto current_write = write_index_.load(std::memory_order_relaxed);
     auto next_write = current_write + 1;
-    if (next_write == N) {
+    if (next_write == REAL_CAPACITY) {
       next_write = 0;
     }
     if (next_write == read_index_.load(std::memory_order_acquire)) {
@@ -119,11 +125,12 @@ class FreelockQueue final : private Alloc {
     } else {
       value = ring[current_read]
     }
-    if constexpr(std::negation_v<std::is_trivially_destructible<value_type>>) {
-      allocator_traits::destroy(*this, std::to_address(std::addressof(ring[current_read])));
+    if constexpr (std::negation_v<std::is_trivially_destructible<value_type>>) {
+      allocator_traits::destroy(
+          *this, std::to_address(std::addressof(ring[current_read])));
     }
     ++current_read;
-    if (current_read == N) {
+    if (current_read == REAL_CAPACITY) {
       current_read = 0;
     }
     read_index_.notify_one();
@@ -134,7 +141,7 @@ class FreelockQueue final : private Alloc {
     int ret = read_index_.load(std::memory_order_acquire) -
               write_index_.load(std::memory_order_acquire);
     if (ret < 0) {
-      ret += N;
+      ret += REAL_CAPACITY;
     }
     return ret;
   }
@@ -144,9 +151,9 @@ class FreelockQueue final : private Alloc {
            write_index_.load(std::memory_order_acquire);
   }
 
-  constexpr std::size_t capacity() const noexcept { return N - 1; }
+  constexpr std::size_t capacity() const noexcept { return REAL_CAPACITY; }
 
- private:
+private:
   using AtomicIndex = std::atomic_size_t;
 
   char pad0[std::hardware_destructive_interference_size];
@@ -158,6 +165,6 @@ class FreelockQueue final : private Alloc {
   char pad1[std::hardware_destructive_interference_size];
 };
 
-}  // namespace hy
+} // namespace hy
 
-#endif  // HY_FREELOCK_QUEUE_HPP_
+#endif // HY_FREELOCK_QUEUE_HPP_
