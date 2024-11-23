@@ -47,7 +47,7 @@ public:
         }
       }
     }
-    allocator_traits::deallocate(ring, capacity());
+    allocator_traits::deallocate(ring, REAL_CAPACITY);
   }
 
   constexpr void push(auto &&...args) noexcept(noexcept(value_type{
