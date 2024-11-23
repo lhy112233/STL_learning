@@ -103,6 +103,7 @@ class FreelockQueue final : private Alloc {
         *this, std::to_address(std::addressof(ring[current_write])),
         std::forward<decltype(args)>(args)...);
     write_index_.store(next_write, std::memory_order_release);
+    write_index_.notify_one();
     return true;
   }
 
