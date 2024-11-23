@@ -147,13 +147,13 @@ class FreelockQueue final : private Alloc {
   constexpr std::size_t capacity() const noexcept { return N - 1; }
 
  private:
-  using AtmoicIndex = std::atomic_size_t;
+  using AtomicIndex = std::atomic_size_t;
 
   char pad0[std::hardware_destructive_interference_size];
   T *const ring;
 
-  alignas(std::hardware_destructive_interference_size) AtmoicIndex read_index_;
-  alignas(std::hardware_destructive_interference_size) AtmoicIndex write_index_;
+  alignas(std::hardware_destructive_interference_size) AtomicIndex read_index_;
+  alignas(std::hardware_destructive_interference_size) AtomicIndex write_index_;
 
   char pad1[std::hardware_destructive_interference_size];
 };
