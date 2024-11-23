@@ -54,9 +54,8 @@ public:
       std::forward<decltype(args)>(args)...})) {
     auto current_write = write_index_.load(std::memory_order_relaxed);
 
-    allocator_traits::construct(
-        *this, std::to_address(std::addressof(ring[current_write])),
-        std::forward<decltype(args)>(args)...);
+    allocator_traits::construct(*this, ring + current_write,
+                                std::forward<decltype(args)>(args)...);
 
     // 延迟修改，万一构造抛异常了就不需要执行此操作
     auto next_write = current_write + 1;
@@ -83,8 +82,7 @@ public:
       value = std::move(ring[current_read]);
     } else {
       value = ring[current_read];
-      allocator_traits::destroy(
-          *this, std::to_address(std::addressof(ring[current_read])));
+      allocator_traits::destroy(*this, ring + current_read);
     }
     ++current_read;
     if (current_read == REAL_CAPACITY) {
@@ -105,9 +103,8 @@ public:
       return false;
     }
 
-    allocator_traits::construct(
-        *this, std::to_address(std::addressof(ring[current_write])),
-        std::forward<decltype(args)>(args)...);
+    allocator_traits::construct(*this, ring + current_write,
+                                std::forward<decltype(args)>(args)...);
     write_index_.store(next_write, std::memory_order_release);
     write_index_.notify_one();
     return true;
@@ -126,8 +123,7 @@ public:
       value = ring[current_read]
     }
     if constexpr (std::negation_v<std::is_trivially_destructible<value_type>>) {
-      allocator_traits::destroy(
-          *this, std::to_address(std::addressof(ring[current_read])));
+      allocator_traits::destroy(*this, ring + current_read);
     }
     ++current_read;
     if (current_read == REAL_CAPACITY) {
