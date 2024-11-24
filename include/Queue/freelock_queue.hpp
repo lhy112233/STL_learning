@@ -26,7 +26,7 @@ namespace hy
 
   public:
     using value_type = T;
-    using size_type = std::size_t;
+    using size_type = typename std::allocator_traits<Alloc>::size_type;
     using allocator_type = Alloc;
     using allocator_traits = std::allocator_traits<Alloc>;
 
@@ -37,7 +37,7 @@ namespace hy
 
     constexpr FreelockQueue()
         : Alloc{}, ring{allocator_traits::allocate(*this, REAL_CAPACITY)},
-          read_index_{0}, write_index_{0} {}
+          read_index_{0}, write_index_{0}, cache_read_index_{0}, cache_write_index_{0} {}
 
     constexpr ~FreelockQueue() noexcept(
         std::is_nothrow_destructible_v<value_type &>)
@@ -62,13 +62,11 @@ namespace hy
     constexpr void push(auto &&...args) noexcept(noexcept(value_type{
         std::forward<decltype(args)>(args)...}))
     {
-      auto current_write = write_index_.load(std::memory_order_relaxed);
-
-      allocator_traits::construct(*this, ring + current_write,
+      allocator_traits::construct(*this, ring + cache_write_index_,
                                   std::forward<decltype(args)>(args)...);
 
       // 延迟修改，万一构造抛异常了就不需要执行此操作
-      auto next_write = current_write + 1;
+      auto next_write = cache_write_index_ + 1;
       if (next_write == REAL_CAPACITY)
       {
         next_write = 0;
@@ -90,30 +88,24 @@ namespace hy
 
       write_index_.store(next_write, std::memory_order_release);
 
-      if (current_write == read_index_.load(std::memory_order_acquire))
+      if (cache_write_index_ == read_index_.load(std::memory_order_acquire))
       {
         write_index_.notify_one();
       }
+      cache_write_index_ = next_write;
     }
 
     constexpr void pop(value_type &value) noexcept(
         std::disjunction_v<std::is_nothrow_move_assignable<value_type>,
                            std::is_nothrow_copy_assignable<value_type>>)
     {
-      auto current_read = read_index_.load(std::memory_order_relaxed);
-      auto write = write_index_.load(std::memory_order_acquire) + 1;
-      if (write == REAL_CAPACITY)
-      {
-        write = 0;
-      }
-      bool call_tag = size() == capacity();
       for (int spin_count = SPIN_COUNT;
-           current_read == write_index_.load(std::memory_order_relaxed);
+           cache_read_index_ == write_index_.load(std::memory_order_relaxed);
            --spin_count)
       {
         if (spin_count == 0)
         {
-          write_index_.wait(current_read, std::memory_order_acquire);
+          write_index_.wait(cache_read_index_, std::memory_order_acquire);
           spin_count = SPIN_COUNT;
         }
         else
@@ -124,22 +116,29 @@ namespace hy
 
       if constexpr (std::is_nothrow_move_assignable_v<value_type>)
       {
-        value = std::move(ring[current_read]);
+        value = std::move(ring[cache_read_index_]);
       }
       else
       {
-        value = ring[current_read];
+        value = ring[cache_read_index_];
       }
       if constexpr (std::negation_v<std::is_trivially_destructible<value_type>>)
       {
-        allocator_traits::destroy(*this, ring + current_read);
+        allocator_traits::destroy(*this, ring + cache_read_index_);
       }
-      ++current_read;
-      if (current_read == REAL_CAPACITY)
+      auto current_write = write_index_.load(std::memory_order_acquire) + 1;
+      if (current_write == REAL_CAPACITY)
       {
-        current_read = 0;
+        current_write = 0;
       }
-      read_index_.store(current_read, std::memory_order_release);
+      bool call_tag = current_write == cache_read_index_;
+
+      ++cache_read_index_;
+      if (cache_read_index_ == REAL_CAPACITY)
+      {
+        cache_read_index_ = 0;
+      }
+      read_index_.store(cache_read_index_, std::memory_order_release);
       if (call_tag)
       {
         read_index_.notify_one();
@@ -149,24 +148,26 @@ namespace hy
     [[nodiscard]] constexpr bool try_push(auto &&...args) noexcept(
         noexcept(value_type{std::forward<decltype(args)>(args)...}))
     {
-      auto current_write = write_index_.load(std::memory_order_relaxed);
-      auto next_write = current_write + 1;
+      auto next_write = cache_write_index_ + 1;
       if (next_write == REAL_CAPACITY)
       {
         next_write = 0;
       }
-      if (next_write == read_index_.load(std::memory_order_acquire))
+      auto current_read = read_index_.load(std::memory_order_acquire);
+
+      if (next_write == current_read)
       {
         return false;
       }
 
-      allocator_traits::construct(*this, ring + current_write,
+      allocator_traits::construct(*this, ring + cache_write_index_,
                                   std::forward<decltype(args)>(args)...);
       write_index_.store(next_write, std::memory_order_release);
-      if (current_write == read_index_.load(std::memory_order_acquire))
-      {
-        write_index_.notify_one();
-      }
+      // if (cache_write_index_ == current_read)
+      // {
+      //   write_index_.notify_one();
+      // }
+      cache_write_index_ = next_write;
       return true;
     }
 
@@ -174,38 +175,40 @@ namespace hy
         std::disjunction_v<std::is_nothrow_move_assignable<value_type>,
                            std::is_nothrow_copy_assignable<value_type>>)
     {
-      auto current_read = read_index_.load(std::memory_order_relaxed);
-      if (current_read == write_index_.load(std::memory_order_acquire))
+      auto current_write = write_index_.load(std::memory_order_acquire);
+      if (cache_read_index_ == current_write)
       {
         return false;
       }
       if constexpr (std::is_nothrow_move_assignable_v<value_type>)
       {
-        value = std::move(ring[current_read]);
+        value = std::move(ring[cache_read_index_]);
       }
       else
       {
-        value = ring[current_read];
+        value = ring[cache_read_index_];
       }
       if constexpr (std::negation_v<std::is_trivially_destructible<value_type>>)
       {
-        allocator_traits::destroy(*this, ring + current_read);
+        allocator_traits::destroy(*this, ring + cache_read_index_);
       }
-      ++current_read;
-      if (current_read == REAL_CAPACITY)
+      ++cache_read_index_;
+      if (cache_read_index_ == REAL_CAPACITY)
       {
-        current_read = 0;
+        cache_read_index_ = 0;
       }
-      {
-        read_index_.notify_one();
-      }
+      read_index_.store(cache_read_index_, std::memory_order_release);
+      // if (cache_read_index_ == current_write)
+      // {
+      //   read_index_.notify_one();
+      // }
       return true;
     }
 
     constexpr std::size_t size() const noexcept
     {
-      int ret = read_index_.load(std::memory_order_acquire) -
-                write_index_.load(std::memory_order_acquire);
+      int ret = read_index_.load(std::memory_order_relaxed) -
+                write_index_.load(std::memory_order_relaxed);
       if (ret < 0)
       {
         ret += REAL_CAPACITY;
@@ -215,8 +218,8 @@ namespace hy
 
     constexpr bool empty() const noexcept
     {
-      return read_index_.load(std::memory_order_acquire) ==
-             write_index_.load(std::memory_order_acquire);
+      return read_index_.load(std::memory_order_relaxed) ==
+             write_index_.load(std::memory_order_relaxed);
     }
 
     constexpr std::size_t capacity() const noexcept { return N; }
@@ -229,6 +232,8 @@ namespace hy
 
     alignas(std::hardware_destructive_interference_size) AtomicIndex read_index_;
     alignas(std::hardware_destructive_interference_size) AtomicIndex write_index_;
+    alignas(std::hardware_destructive_interference_size) size_type cache_read_index_;
+    alignas(std::hardware_destructive_interference_size) size_type cache_write_index_;
 
     char pad1[std::hardware_destructive_interference_size];
   };

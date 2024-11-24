@@ -91,7 +91,12 @@
         "forward_list": "cpp",
         "unordered_set": "cpp",
         "span": "cpp",
-        "version": "cpp"
+        "version": "cpp",
+        "charconv": "cpp",
+        "expected": "cpp",
+        "scoped_allocator": "cpp",
+        "format": "cpp",
+        "text_encoding": "cpp"
     },
     "cmake.options.statusBarVisibility": "visible",
     "workbench.colorCustomizations": {
