@@ -106,7 +106,7 @@ namespace hy
       {
         write = 0;
       }
-      bool call_tag = write == current_read;
+      bool call_tag = size() == capacity();
       for (int spin_count = SPIN_COUNT;
            current_read == write_index_.load(std::memory_order_relaxed);
            --spin_count)
